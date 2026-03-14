@@ -874,10 +874,7 @@ function buildAssignTaskForm(){
       <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure début</label><input id="assign-sh" type="number" value="9" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
       <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure fin</label><input id="assign-eh" type="number" value="10" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Priorité</label><select id="assign-plevel" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"><option>Élevé</option><option selected>Moyen</option><option>Faible</option></select></div>
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Couleur</label><input id="assign-color" type="color" value="#FF4D6D" style="padding:4px;height:38px;width:100%;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));cursor:pointer"></div>
-    </div>
+    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Priorité</label><select id="assign-plevel" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"><option>Élevé</option><option selected>Moyen</option><option>Faible</option></select></div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--card-bg2)"><input type="checkbox" id="assign-add-pri" style="width:16px;height:16px;cursor:pointer;accent-color:#4CAF50"><div><div style="font-size:13px;font-weight:600;color:var(--text)">Ajouter aux priorités</div><div style="font-size:11px;color:var(--text5);margin-top:2px">Classifie aussi dans les priorités de l'employé</div></div></label>
     <button onclick="sendTaskToEmp()" style="padding:11px;border-radius:10px;background:#4CAF50;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.02em">✦ Envoyer la tâche</button>
   </div>`;
@@ -891,7 +888,7 @@ function sendTaskToEmp(){
   const ed=document.getElementById('assign-ed').value||sd;
   const sh=parseInt(document.getElementById('assign-sh').value)||9;
   const eh=parseInt(document.getElementById('assign-eh').value)||10;
-  const color=document.getElementById('assign-color').value||'#FF4D6D';
+  const color='#FF4D6D';
   const pLevel=document.getElementById('assign-plevel').value||'Moyen';
   const addPri=document.getElementById('assign-add-pri').checked;
   if(!edata[empId])edata[empId]={evts:[],pris:[]};
