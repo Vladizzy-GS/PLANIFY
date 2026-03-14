@@ -844,8 +844,9 @@ function renderTasks(){
   const upcoming=evts.filter(ev=>{const s=localDate(ev.sd);s.setHours(0,0,0,0);return s>today&&!ev.done;}).sort((a,b)=>localDate(a.sd)-localDate(b.sd));
   const activePris=getPris().filter(p=>p.status!=='Terminé');
   const totalDone=evts.filter(e=>e.done).length,totalEvts=evts.length,pct=totalEvts?Math.round(totalDone/totalEvts*100):0;
-  // Per-column layout (freeflow drag) — 'today' is pinned (not draggable)
+  // Per-column layout (freeflow drag) — 'today' is pinned (not draggable, not in layout)
   const defOrder=admin?['overdue','upcoming','priorities','assign']:['overdue','upcoming','priorities'];
+  const defOrderFull=defOrder; // alias used in drag handlers
   const layout=getTasksLayout(defOrder);
   // Draggable widget wrapper
   const W=(key,icon,title,badge,color,content)=>`<div class="task-widget" data-key="${key}" draggable="true" ondragstart="tasksDragStart(event,'${key}')" ondragover="tasksDragOver(event)" ondrop="tasksDrop(event,'${key}')" ondragend="tasksDragEnd(event)" ondragleave="tasksDragLeave(event)" style="background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);overflow:hidden;transition:box-shadow .2s,outline .15s"><div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border2);cursor:grab;user-select:none;background:var(--card-bg2)"><span style="font-size:15px;color:${color}">${icon}</span><span style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;flex:1">${title}</span>${badge!==null?`<span style="background:${color}25;color:${color};border-radius:8px;padding:1px 8px;font-size:12px;font-weight:700">${badge}</span>`:''}<span style="color:var(--text5);font-size:13px;letter-spacing:1px">⠿</span></div><div style="padding:14px 16px">${content}</div></div>`;
@@ -874,11 +875,14 @@ function renderTasks(){
   const rightW=layout.right.map(k=>sections[k]||'').join('');
   const colRatio=parseFloat(localStorage.getItem('tasks-col-ratio')||'50');
   const dropZone=(col)=>`<div class="t-drop-zone" ondragover="tasksColDragOver(event,'${col}')" ondragleave="tasksColDragLeave(event)" ondrop="tasksColDrop(event,'${col}')" style="border:2px dashed transparent;border-radius:10px;min-height:44px;transition:border-color .15s,background .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:var(--text6,var(--text5));opacity:.6;pointer-events:none">⊕ Déposer ici</span></div>`;
+  const todayDateLabel=(()=>{const d=today;return DAYS_LONG[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];})();
+  const todayCentred=`<div style="display:flex;justify-content:center;margin-bottom:22px"><div style="width:100%;max-width:600px;background:linear-gradient(135deg,rgba(76,201,240,.07),rgba(76,201,240,.03));border:2px solid rgba(76,201,240,.35);border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(76,201,240,.08)"><div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid rgba(76,201,240,.18);background:rgba(76,201,240,.06)"><span style="font-size:20px">◷</span><div style="flex:1"><div style="font-size:11px;font-weight:700;color:#4CC9F0;text-transform:uppercase;letter-spacing:.1em;margin-bottom:1px">Aujourd'hui</div><div style="font-size:13px;font-weight:600;color:var(--text3)">${todayDateLabel}</div></div><span style="background:rgba(76,201,240,.18);color:#4CC9F0;border-radius:10px;padding:2px 10px;font-size:13px;font-weight:700">${todayEvts.length}</span></div><div style="padding:14px 20px">${todayC}</div></div></div>`;
   pg.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px"><div><div style="font-size:12px;font-weight:600;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Tableau de bord</div><h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Tâches</h1></div><div style="display:flex;align-items:center;gap:10px"><div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg);font-size:13px;color:var(--text3)"><div style="width:70px;height:5px;border-radius:3px;background:var(--border2);overflow:hidden"><div style="width:${pct}%;height:100%;background:#4CAF50;border-radius:3px"></div></div><span style="font-weight:700;color:var(--text)">${totalDone}/${totalEvts}</span></div><button onclick="goTo('schedule')" style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:10px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:13px;font-weight:600;cursor:pointer">◫ Horaire</button></div></div>
+  ${todayCentred}
   <div id="tasks-dashboard" style="display:flex;gap:0;align-items:flex-start;overflow:hidden">
     <div id="tasks-col-left" style="flex:${colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${leftW}${dropZone('left')}</div>
     <div id="tasks-col-resizer" onmousedown="tasksResizeStart(event)" style="flex:0 0 10px;cursor:col-resize;display:flex;align-items:stretch;justify-content:center;align-self:stretch;position:relative;z-index:5;user-select:none"><div style="width:3px;background:var(--border2);border-radius:2px;margin:0 auto;pointer-events:none;transition:background .15s;align-self:stretch"></div></div>
-    <div id="tasks-col-right" style="flex:${100-colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${todayWidget}${rightW}${dropZone('right')}</div>
+    <div id="tasks-col-right" style="flex:${100-colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${rightW}${dropZone('right')}</div>
   </div>`;
   // Hover effect on resizer
   const resizer=pg.querySelector('#tasks-col-resizer');
@@ -918,7 +922,12 @@ function tasksResizeStart(e){
 let _tasksDragKey=null;
 function getTasksLayout(def){
   try{const s=JSON.parse(localStorage.getItem('tasks-layout')||'null');
-    if(s&&s.left&&s.right){const all=[...s.left,...s.right];if(def.every(k=>all.includes(k))&&all.length===def.length)return{left:[...s.left],right:[...s.right]};}}catch(e){}
+    if(s&&s.left&&s.right){
+      const all=[...s.left,...s.right].filter(k=>def.includes(k));
+      const saved={left:s.left.filter(k=>def.includes(k)),right:s.right.filter(k=>def.includes(k))};
+      const missing=def.filter(k=>!all.includes(k));
+      missing.forEach((k,i)=>{if(i%2===0)saved.left.push(k);else saved.right.push(k);});
+      if(saved.left.length||saved.right.length)return saved;}}catch(e){}
   return{left:def.filter((_,i)=>i%2===0),right:def.filter((_,i)=>i%2!==0)};}
 function saveTasksLayout(l){localStorage.setItem('tasks-layout',JSON.stringify(l));}
 function tasksDragStart(e,key){_tasksDragKey=key;e.dataTransfer.effectAllowed='move';document.querySelectorAll('.t-drop-zone').forEach(z=>z.style.borderColor='rgba(255,77,109,.35)');setTimeout(()=>{if(e.target)e.target.style.opacity='.4';},0);}
@@ -929,7 +938,7 @@ function tasksDrop(e,targetKey){
   e.preventDefault();e.stopPropagation();e.currentTarget.style.outline='';
   if(!_tasksDragKey||_tasksDragKey===targetKey)return;
   const admin=isAdminSession();
-  const def=admin?['overdue','today','upcoming','priorities','assign']:['overdue','today','upcoming','priorities'];
+  const def=admin?['overdue','upcoming','priorities','assign']:['overdue','upcoming','priorities'];
   const lay=getTasksLayout(def);
   lay.left=lay.left.filter(k=>k!==_tasksDragKey);lay.right=lay.right.filter(k=>k!==_tasksDragKey);
   const col=lay.left.includes(targetKey)?'left':'right';
@@ -941,7 +950,7 @@ function tasksColDrop(e,col){
   e.preventDefault();e.currentTarget.style.borderColor='transparent';
   if(!_tasksDragKey)return;
   const admin=isAdminSession();
-  const def=admin?['overdue','today','upcoming','priorities','assign']:['overdue','today','upcoming','priorities'];
+  const def=admin?['overdue','upcoming','priorities','assign']:['overdue','upcoming','priorities'];
   const lay=getTasksLayout(def);
   lay.left=lay.left.filter(k=>k!==_tasksDragKey);lay.right=lay.right.filter(k=>k!==_tasksDragKey);
   lay[col].push(_tasksDragKey);saveTasksLayout(lay);_tasksDragKey=null;renderTasks();}
