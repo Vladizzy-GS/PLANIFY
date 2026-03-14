@@ -715,6 +715,10 @@ function taskCard(ev,isOverdue){
   const done=!!ev.done;
   const timeStr=ev.allDay?'Toute la journée':`${ev.sh}h – ${ev.eh}h`;
   const brStr=ev.branchIds&&ev.branchIds.length?' · '+ev.branchIds.join(', '):'';
+  const sd=localDate(ev.sd),ed=localDate(ev.ed);
+  const fmtD=d=>DAYS_FR[d.getDay()].slice(0,3)+'. '+d.getDate()+' '+MONTHS_FR[d.getMonth()].slice(0,4)+'.';
+  const isMultiDay=ev.sd!==ev.ed;
+  const dateStr_=isMultiDay?fmtD(sd)+' → '+fmtD(ed):fmtD(sd);
   return`<div style="background:${done?'var(--card-bg2)':'var(--card-bg)'};border-radius:12px;border:1px solid ${isOverdue&&!done?'rgba(255,77,109,.25)':'var(--border2)'};padding:14px 16px;display:flex;align-items:center;gap:14px;opacity:${done?.55:1};transition:all .2s">
     <button type="button" onclick="toggleEvDone(${ev.id})" style="width:22px;height:22px;border-radius:6px;border:2px solid ${done?'#4CAF50':'var(--border2)'};background:${done?'#4CAF50':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-appearance:none;appearance:none;transition:all .15s">
       ${done?`<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>`:''}
@@ -722,7 +726,10 @@ function taskCard(ev,isOverdue){
     <div style="width:4px;height:38px;border-radius:2px;background:${ev.color};flex-shrink:0"></div>
     <div style="flex:1;min-width:0">
       <div style="font-size:14px;font-weight:600;color:${done?'var(--text4)':'var(--text)'};${done?'text-decoration:line-through':''}; white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.title}</div>
-      <div style="font-size:12px;color:var(--text5);margin-top:3px">${timeStr}${brStr}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap">
+        <span style="font-size:12px;color:${isOverdue&&!done?'rgba(255,77,109,.8)':'var(--text3)'};font-weight:500">📅 ${dateStr_}</span>
+        <span style="font-size:12px;color:var(--text5)">· ${timeStr}${brStr}</span>
+      </div>
     </div>
     ${isOverdue&&!done?`<span style="font-size:11px;font-weight:700;color:#FF4D6D;background:rgba(255,77,109,.1);border-radius:6px;padding:2px 8px;flex-shrink:0">EN RETARD</span>`:''}
     ${done?`<span style="font-size:11px;font-weight:700;color:#4CAF50;background:rgba(76,175,80,.1);border-radius:6px;padding:2px 8px;flex-shrink:0">✓ Fait</span>`:''}
@@ -742,6 +749,7 @@ function priorityTaskCard(p){
           <span style="font-size:11px;font-weight:700;color:${lvlColor};background:${lvlColor}20;border-radius:6px;padding:1px 7px">${p.pLevel}</span>
           <span style="font-size:12px;color:${stColor};font-weight:500">${p.status}</span>
           ${parts.length?`<span style="font-size:12px;color:var(--text5)">${doneP}/${totalP} sous-tâches</span>`:''}
+          ${p.due?`<span style="font-size:12px;color:var(--text4)">📅 Échéance: ${(d=>DAYS_FR[d.getDay()].slice(0,3)+'. '+d.getDate()+' '+MONTHS_FR[d.getMonth()].slice(0,4)+'.')(localDate(p.due))}</span>`:''}
         </div>
       </div>
       <button onclick="goTo('priorities')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0">→</button>
