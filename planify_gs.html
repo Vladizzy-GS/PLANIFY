@@ -936,6 +936,7 @@ function renderSplashScreen(){
   if(!scr){scr=document.createElement('div');scr.id='splash-screen';document.body.appendChild(scr);}
   scr.style.cssText='display:flex;position:fixed;inset:0;z-index:9000;background:#0a0a12;align-items:center;justify-content:center;overflow:hidden;transition:none';
   scr.innerHTML=`
+    <button onclick="loginAs(emps[0]?.id||1,true)" title="Mode test — passer la connexion" style="position:absolute;top:14px;right:14px;z-index:10;width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='rgba(255,77,109,.2)';this.style.color='#FF4D6D';this.style.borderColor='rgba(255,77,109,.4)'" onmouseout="this.style.background='rgba(255,255,255,.07)';this.style.color='rgba(255,255,255,.5)';this.style.borderColor='rgba(255,255,255,.15)'">✕</button>
     <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">
       <div style="position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(255,77,109,.13) 0%,transparent 70%);animation:splOrb 8s ease-in-out infinite"></div>
       <div style="position:absolute;bottom:-10%;right:-10%;width:500px;height:500px;background:radial-gradient(ellipse,rgba(76,201,240,.07) 0%,transparent 70%);animation:splOrb 11s 2s ease-in-out infinite reverse"></div>
