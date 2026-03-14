@@ -1175,6 +1175,13 @@ if(searchMatch&&getBraveKey()){
     finalRaw=(data2.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
     aiHistory.push({role:'assistant',content:finalRaw});
   }else{aiHistory.push({role:'assistant',content:raw});finalRaw=raw.replace(/##SEARCH:[^#]+##/g,'').trim();}
+}else if(searchMatch&&!getBraveKey()){
+  // Gemini a généré un tag SEARCH mais pas de clé Brave — relancer sans recherche
+  aiHistory.push({role:'user',content:'La recherche web n\'est pas disponible. Réponds directement à ma question avec tes connaissances générales, sans générer de tag SEARCH.'});
+  const res3=await geminiCall(toGeminiContents(aiHistory.slice(-14)),buildSystemPrompt(),1024);
+  const data3=await res3.json();
+  finalRaw=(data3.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+  aiHistory.push({role:'assistant',content:finalRaw});
 }else{aiHistory.push({role:'assistant',content:finalRaw});}
 loader.remove();
 const evMatch=finalRaw.match(/##EV:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d+)\|(\d+)\|([^#]*)##/);
