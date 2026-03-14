@@ -42,6 +42,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 @keyframes fU{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes splLogoIn{from{opacity:0;transform:translateY(-36px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes splFadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes splLineIn{from{opacity:0;width:0}to{opacity:1;width:40px}}
+@keyframes splFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes splFadeOut{to{opacity:0;transform:scale(.97)}}
+@keyframes splOrb{0%,100%{transform:scale(1) translate(0,0)}50%{transform:scale(1.15) translate(12px,-8px)}}
 input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outline:none;transition:background-color .25s,border-color .25s,color .2s;}
 .inp{width:100%;padding:11px 14px;background:var(--inp-bg);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:15px}
 .inp:focus{border-color:rgba(255,77,109,.5)}
@@ -690,6 +696,93 @@ let ADMIN_PIN_VAL='1234';
 let currentSession=null;
 let pinTarget=null,pinBuffer='';
 
+function renderSplashScreen(){
+  document.getElementById('main').style.display='none';
+  document.getElementById('sidebar').style.display='none';
+  let scr=document.getElementById('splash-screen');
+  if(!scr){scr=document.createElement('div');scr.id='splash-screen';document.body.appendChild(scr);}
+  scr.style.cssText='display:flex;position:fixed;inset:0;z-index:9000;background:#0a0a12;align-items:center;justify-content:center;overflow:hidden;transition:none';
+  scr.innerHTML=`
+    <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">
+      <div style="position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(255,77,109,.13) 0%,transparent 70%);animation:splOrb 8s ease-in-out infinite"></div>
+      <div style="position:absolute;bottom:-10%;right:-10%;width:500px;height:500px;background:radial-gradient(ellipse,rgba(76,201,240,.07) 0%,transparent 70%);animation:splOrb 11s 2s ease-in-out infinite reverse"></div>
+      <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 1px,transparent 1px,transparent 60px),repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 1px,transparent 1px,transparent 60px)"></div>
+    </div>
+    <div style="width:100%;max-width:420px;padding:24px;position:relative">
+      <div style="text-align:center;margin-bottom:40px;animation:splLogoIn .75s cubic-bezier(.22,1,.36,1) both">
+        <div style="display:inline-flex;align-items:center;justify-content:center;gap:0;margin-bottom:16px">
+          <div style="width:3px;height:42px;background:linear-gradient(180deg,#FF4D6D,#F77F00);border-radius:2px;margin-right:14px;animation:splFadeIn .5s .5s both"></div>
+          <div>
+            <div style="font-size:11px;color:#FF4D6D;letter-spacing:.22em;text-transform:uppercase;font-weight:700;margin-bottom:8px;animation:splFadeUp .5s .15s ease both">Gestion équipe</div>
+            <div style="font-size:36px;font-family:'Syne',sans-serif;font-weight:800;color:#e8e8f0;line-height:1;letter-spacing:-.01em">Planify <span style="color:#FF4D6D">·</span> <span style="color:rgba(255,255,255,.28);font-weight:600;font-size:30px">GS</span></div>
+          </div>
+        </div>
+        <div style="height:1px;width:100%;background:linear-gradient(90deg,transparent,rgba(255,77,109,.4),rgba(247,127,0,.4),transparent);margin-top:4px;animation:splFadeIn .8s .4s ease both"></div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:22px;padding:28px;animation:splFadeUp .6s .3s ease both;backdrop-filter:blur(12px)">
+        <button onclick="splGoogleLogin()" id="spl-google-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:13px;border-radius:12px;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.04);color:#e8e8f0;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:20px;transition:background .2s,border-color .2s" onmouseover="this.style.background='rgba(255,255,255,.09)';this.style.borderColor='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.borderColor='rgba(255,255,255,.11)'">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continuer avec Google
+        </button>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <div style="flex:1;height:1px;background:rgba(255,255,255,.07)"></div>
+          <span style="font-size:12px;color:rgba(255,255,255,.28);font-weight:500;letter-spacing:.04em">ou</span>
+          <div style="flex:1;height:1px;background:rgba(255,255,255,.07)"></div>
+        </div>
+        <div style="display:flex;gap:3px;background:rgba(255,255,255,.04);border-radius:10px;padding:3px;margin-bottom:22px">
+          <button id="spl-tab-in" onclick="splShowTab('in')" style="flex:1;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:rgba(255,77,109,.18);color:#FF4D6D;transition:all .2s">Se connecter</button>
+          <button id="spl-tab-up" onclick="splShowTab('up')" style="flex:1;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:rgba(255,255,255,.35);transition:all .2s">Créer un compte</button>
+        </div>
+        <div id="spl-form-in">
+          <div style="margin-bottom:14px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px">Courriel</label><input id="spl-in-email" type="email" placeholder="vous@exemple.com" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='rgba(255,77,109,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.09)'"/></div>
+          <div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px">Mot de passe</label><input id="spl-in-pass" type="password" placeholder="••••••••" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='rgba(255,77,109,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.09)'" onkeydown="if(event.key==='Enter')splLogin()"/></div>
+          <div id="spl-in-err" style="font-size:13px;color:#FF4D6D;margin-bottom:12px;min-height:18px;text-align:center"></div>
+          <button onclick="splLogin()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FF4D6D,#F77F00);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">Se connecter</button>
+          <div style="text-align:center;margin-top:14px"><span style="font-size:13px;color:rgba(255,255,255,.28)">Mot de passe oublié ? </span><a href="#" onclick="showToast('Fonctionnalité à venir');return false" style="font-size:13px;color:#FF4D6D;text-decoration:none;font-weight:600">Réinitialiser</a></div>
+        </div>
+        <div id="spl-form-up" style="display:none">
+          <div style="margin-bottom:14px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px">Nom complet</label><input id="spl-up-name" type="text" placeholder="Jean Tremblay" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='rgba(255,77,109,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.09)'"/></div>
+          <div style="margin-bottom:14px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px">Courriel</label><input id="spl-up-email" type="email" placeholder="vous@exemple.com" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='rgba(255,77,109,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.09)'"/></div>
+          <div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px">Mot de passe</label><input id="spl-up-pass" type="password" placeholder="Min. 8 caractères" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='rgba(255,77,109,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.09)'" onkeydown="if(event.key==='Enter')splRegister()"/></div>
+          <div id="spl-up-err" style="font-size:13px;color:#FF4D6D;margin-bottom:12px;min-height:18px;text-align:center"></div>
+          <button onclick="splRegister()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FF4D6D,#F77F00);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">Créer mon compte</button>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:22px;font-size:12px;color:rgba(255,255,255,.18);animation:splFadeUp .6s .5s ease both">© 2026 Planify · GS — Tous droits réservés</div>
+    </div>`;
+}
+function splShowTab(t){
+  document.getElementById('spl-form-in').style.display=t==='in'?'block':'none';
+  document.getElementById('spl-form-up').style.display=t==='up'?'block':'none';
+  const ti=document.getElementById('spl-tab-in'),tu=document.getElementById('spl-tab-up');
+  ti.style.background=t==='in'?'rgba(255,77,109,.18)':'transparent';ti.style.color=t==='in'?'#FF4D6D':'rgba(255,255,255,.35)';
+  tu.style.background=t==='up'?'rgba(255,77,109,.18)':'transparent';tu.style.color=t==='up'?'#FF4D6D':'rgba(255,255,255,.35)';
+}
+function splProceed(){
+  const scr=document.getElementById('splash-screen');
+  if(scr){scr.style.animation='splFadeOut .4s ease forwards';setTimeout(()=>{scr.remove();renderLoginScreen();},380);}
+  else renderLoginScreen();
+}
+function splLogin(){
+  const email=document.getElementById('spl-in-email').value.trim(),pass=document.getElementById('spl-in-pass').value,err=document.getElementById('spl-in-err');
+  if(!email||!pass){err.textContent='Veuillez remplir tous les champs.';return;}
+  if(!email.includes('@')){err.textContent='Courriel invalide.';return;}
+  if(pass.length<4){err.textContent='Mot de passe trop court.';return;}
+  err.textContent='';splProceed();
+}
+function splRegister(){
+  const name=document.getElementById('spl-up-name').value.trim(),email=document.getElementById('spl-up-email').value.trim(),pass=document.getElementById('spl-up-pass').value,err=document.getElementById('spl-up-err');
+  if(!name||!email||!pass){err.textContent='Veuillez remplir tous les champs.';return;}
+  if(!email.includes('@')){err.textContent='Courriel invalide.';return;}
+  if(pass.length<8){err.textContent='Le mot de passe doit contenir au moins 8 caractères.';return;}
+  err.textContent='';splProceed();
+}
+function splGoogleLogin(){
+  const btn=document.getElementById('spl-google-btn');
+  btn.textContent='Connexion en cours…';btn.disabled=true;btn.style.opacity='.6';
+  setTimeout(()=>splProceed(),900);
+}
+
 function renderLoginScreen(){
   document.getElementById('main').style.display='none';
   document.getElementById('sidebar').style.display='none';
@@ -759,7 +852,7 @@ function renderSessionBadge(){
     <button onclick="logout()" style="font-size:11px;font-weight:600;color:var(--text4);background:transparent;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;cursor:pointer">Quitter</button>
   </div>`;
 }
-function logout(){currentSession=null;currentEmpId=emps[0]?.id||1;document.getElementById('main').style.display='none';document.getElementById('sidebar').style.display='none';const b=document.getElementById('session-badge');if(b)b.remove();renderLoginScreen();}
+function logout(){currentSession=null;currentEmpId=emps[0]?.id||1;document.getElementById('main').style.display='none';document.getElementById('sidebar').style.display='none';const b=document.getElementById('session-badge');if(b)b.remove();renderSplashScreen();}
 function isAdminSession(){return currentSession?.isAdmin===true;}
 
 function showSetTab(tab){
@@ -1512,7 +1605,7 @@ function loadApiKeyField(){const k=getApiKey();if(k){const inp=document.getEleme
 (function init(){
   document.getElementById('main').style.display='none';
   document.getElementById('sidebar').style.display='none';
-  renderLoginScreen();
+  renderSplashScreen();
 })();
 </script>
 </body>
