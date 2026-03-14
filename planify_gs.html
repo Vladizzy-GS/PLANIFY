@@ -393,13 +393,13 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
       <div style="background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);overflow:hidden">
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7B2FBE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          <span style="font-size:14px;font-weight:700;color:var(--text)">Clé API Anthropic (Assistant IA)</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Clé API Google Gemini (Assistant IA)</span>
         </div>
         <div style="padding:16px 18px">
-          <p style="font-size:13px;color:var(--text4);margin-bottom:12px;line-height:1.6">Requise pour activer l'Assistant IA et l'Agent Admin. La clé est stockée localement dans votre navigateur et n'est jamais envoyée ailleurs.</p>
-          <label class="lbl">Clé API (sk-ant-…)</label>
+          <p style="font-size:13px;color:var(--text4);margin-bottom:12px;line-height:1.6">Requise pour activer l'Assistant IA et l'Agent Admin. Clé gratuite sur <strong style="color:var(--text3)">aistudio.google.com</strong> — aucune carte de crédit requise. La clé est stockée localement dans votre navigateur et n'est jamais envoyée ailleurs.</p>
+          <label class="lbl">Clé API Gemini (AIza…)</label>
           <div style="position:relative;margin-bottom:12px">
-            <input id="set-api-key" type="password" class="inp" placeholder="sk-ant-api03-…" style="padding-right:44px;font-family:monospace;letter-spacing:.04em"/>
+            <input id="set-api-key" type="password" class="inp" placeholder="AIzaSy…" style="padding-right:44px;font-family:monospace;letter-spacing:.04em"/>
             <button type="button" onclick="toggleApiKeyVis()" id="api-key-eye" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex;align-items:center">
               <svg id="api-eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
@@ -1148,18 +1148,19 @@ ${hasSearch?`
 function addAIBubble(role,html,actions){const msgs=document.getElementById('ai-msgs');const isUser=role==='user';const el=document.createElement('div');el.style.cssText=`display:flex;gap:12px;align-items:flex-start;animation:fU .2s ease;${isUser?'flex-direction:row-reverse':''}`;el.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;${isUser?'background:linear-gradient(135deg,#FF4D6D,#F77F00)':'background:linear-gradient(135deg,#7B2FBE,#4CC9F0)'}">${isUser?'Vo':'IA'}</div><div style="max-width:85%"><div style="background:${isUser?'rgba(255,77,109,.1)':'var(--stat-bg)'};border:1px solid ${isUser?'rgba(255,77,109,.2)':'var(--border3)'};border-radius:${isUser?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:14px 18px;font-size:14px;line-height:1.7;color:var(--text)">${html}</div>${actions?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${actions}</div>`:''}</div>`;msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;}
 async function sendAI(){
 const inp=document.getElementById('ai-input');const msg=inp.value.trim();if(!msg)return;
-if(!getApiKey()){addAIBubble('assistant','<span style="color:#FFB703">⚠ Clé API non configurée — va dans <strong>Paramètres → Général</strong> pour ajouter ta clé Anthropic.</span>');return;}
+if(!getApiKey()){addAIBubble('assistant','<span style="color:#FFB703">⚠ Clé API non configurée — va dans <strong>Paramètres → Général</strong> pour ajouter ta clé Gemini (gratuite sur aistudio.google.com).</span>');return;}
 inp.value='';addAIBubble('user',msg.replace(/\n/g,'<br>'));
 const msgs=document.getElementById('ai-msgs');
 const loader=document.createElement('div');
 loader.innerHTML=`<div style="font-size:13px;color:var(--text5);font-style:italic;padding:8px 0">✦ Analyse…</div>`;
 msgs.appendChild(loader);msgs.scrollTop=msgs.scrollHeight;
 aiHistory.push({role:'user',content:msg});
-const headers={'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+function toGeminiContents(hist){return hist.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));}
+function geminiCall(contents,sysPr,maxTok){return fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:sysPr}]},contents,generationConfig:{maxOutputTokens:maxTok}})});}
 try{
-const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1024,system:buildSystemPrompt(),messages:aiHistory.slice(-12)})});
+const res=await geminiCall(toGeminiContents(aiHistory.slice(-12)),buildSystemPrompt(),1024);
 const data=await res.json();
-const raw=(data.content?.[0]?.text||'').trim();
+const raw=(data.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
 let finalRaw=raw;
 const searchMatch=raw.match(/##SEARCH:([^#]+)##/);
 if(searchMatch&&getBraveKey()){
@@ -1169,9 +1170,9 @@ if(searchMatch&&getBraveKey()){
   if(results){
     aiHistory.push({role:'assistant',content:raw});
     aiHistory.push({role:'user',content:`Résultats de recherche web pour "${query}":\n\n${results}\n\nSynthétise ces résultats pour répondre à ma question. Cite les sources pertinentes.`});
-    const res2=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1024,system:buildSystemPrompt(),messages:aiHistory.slice(-14)})});
+    const res2=await geminiCall(toGeminiContents(aiHistory.slice(-14)),buildSystemPrompt(),1024);
     const data2=await res2.json();
-    finalRaw=(data2.content?.[0]?.text||'').trim();
+    finalRaw=(data2.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
     aiHistory.push({role:'assistant',content:finalRaw});
   }else{aiHistory.push({role:'assistant',content:raw});finalRaw=raw.replace(/##SEARCH:[^#]+##/g,'').trim();}
 }else{aiHistory.push({role:'assistant',content:finalRaw});}
@@ -1221,7 +1222,7 @@ function admConfirmAssign(payloadStr,btnId){const{prId,fromId,toId}=JSON.parse(p
 
 function admAddMsgBubble(role,html,actionsHTML){const c=document.getElementById('adm-ai-msgs');const ph=c.querySelector('[data-placeholder]');if(ph)ph.remove();const isUser=role==='user';const el=document.createElement('div');el.style.cssText=`display:flex;gap:10px;align-items:flex-start;animation:fU .2s ease;${isUser?'flex-direction:row-reverse':''}`;el.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;${isUser?'background:linear-gradient(135deg,#FFB703,#F77F00)':'background:linear-gradient(135deg,#4CC9F0,#7B2FBE)'}">${isUser?'AD':'IA'}</div><div style="max-width:90%"><div style="background:${isUser?'rgba(255,183,3,.1)':'var(--stat-bg)'};border:1px solid ${isUser?'rgba(255,183,3,.2)':'var(--border3)'};border-radius:${isUser?'14px 4px 14px 14px':'4px 14px 14px 14px'};padding:12px 16px;font-size:14px;line-height:1.7;color:var(--text)">${html}</div>${actionsHTML?`<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${actionsHTML}</div>`:''}</div>`;c.appendChild(el);c.scrollTop=c.scrollHeight;return el;}
 async function sendAdmAI(){const inp=document.getElementById('adm-ai-inp');const msg=inp.value.trim();if(!msg)return;inp.value='';admAddMsgBubble('user',msg.replace(/\n/g,'<br>'));const c=document.getElementById('adm-ai-msgs');const loader=document.createElement('div');loader.style.cssText='display:flex;gap:10px;align-items:center;padding:4px 0';loader.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4CC9F0,#7B2FBE);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">IA</div><div style="font-size:13px;color:var(--text5);font-style:italic;animation:pulse 1.5s infinite">Analyse en cours…</div>`;c.appendChild(loader);c.scrollTop=c.scrollHeight;admAiHistory.push({role:'user',content:msg});
-try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:buildAdminSystemPrompt(),messages:admAiHistory.slice(-20)})});const data=await res.json();loader.remove();if(data.error){admAddMsgBubble('assistant',`<span style="color:#FF4D6D">Erreur API: ${data.error.message}</span>`);return;}const raw=(data.content?.[0]?.text||'').trim();admAiHistory.push({role:'assistant',content:raw});const actionsHTML=parseAdmActions(raw);const displayText=raw.replace(/##ADM\w+:[^#]*##/g,'').trim();const formatted=displayText.replace(/\*\*([^*]+)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');admAddMsgBubble('assistant',formatted||'(analyse terminée)',actionsHTML);}catch(err){loader.remove();admAddMsgBubble('assistant','<span style="color:#FF4D6D">Erreur de connexion réseau.</span>');console.error(err);}}
+try{const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:buildAdminSystemPrompt()}]},contents:admAiHistory.slice(-20).map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})),generationConfig:{maxOutputTokens:1500}})});const data=await res.json();loader.remove();if(data.error){admAddMsgBubble('assistant',`<span style="color:#FF4D6D">Erreur API: ${data.error.message}</span>`);return;}const raw=(data.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();admAiHistory.push({role:'assistant',content:raw});const actionsHTML=parseAdmActions(raw);const displayText=raw.replace(/##ADM\w+:[^#]*##/g,'').trim();const formatted=displayText.replace(/\*\*([^*]+)\*\*/g,'<strong style="color:var(--text)">$1</strong>').replace(/\n/g,'<br>');admAddMsgBubble('assistant',formatted||'(analyse terminée)',actionsHTML);}catch(err){loader.remove();admAddMsgBubble('assistant','<span style="color:#FF4D6D">Erreur de connexion réseau.</span>');console.error(err);}}
 function admChip(txt){document.getElementById('adm-ai-inp').value=txt;sendAdmAI();}
 function clearAdmHistory(){admAiHistory=[];const c=document.getElementById('adm-ai-msgs');c.innerHTML=`<div data-placeholder style="text-align:center;padding:24px 0;color:var(--text5);font-size:14px"><div style="font-size:32px;margin-bottom:10px">✦</div><div style="font-weight:600;color:var(--text3);margin-bottom:6px">Agent prêt</div><div style="font-size:13px;line-height:1.7">Créer un événement · Modifier un statut · Supprimer · Analyser · Assigner</div></div>`;}
 
@@ -1423,13 +1424,13 @@ async function genAIBrief(){
   btn.disabled=true;btn.textContent='Génération…';
   el.innerHTML='<span style="color:var(--text5);font-style:italic">✦ Analyse en cours…</span>';
   const prompt=`Basé sur ce contexte admin, génère un résumé exécutif concis de la semaine (5-8 lignes). Format: points clés avec emojis, anomalies importantes, recommandations.\n\n${buildAdminContext()}`;
-  try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:prompt}]})});const data=await res.json();const txt=(data.content?.[0]?.text||'Erreur').replace(/\n/g,'<br>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');el.innerHTML=`<div style="font-size:14px;color:var(--text);line-height:1.9;font-style:normal">${txt}</div>`;}catch{el.innerHTML='<span style="color:#FF4D6D">Erreur de connexion.</span>';}
+  try{const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:600}})});const data=await res.json();const txt=(data.candidates?.[0]?.content?.parts?.[0]?.text||'Erreur').replace(/\n/g,'<br>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');el.innerHTML=`<div style="font-size:14px;color:var(--text);line-height:1.9;font-style:normal">${txt}</div>`;}catch{el.innerHTML='<span style="color:#FF4D6D">Erreur de connexion.</span>';}
   btn.disabled=false;btn.textContent='Régénérer';
 }
 
 // ═══ API KEY ═══
 function getApiKey(){return localStorage.getItem('planify_api_key')||'';}
-function saveApiKey(){const val=document.getElementById('set-api-key').value.trim();const msg=document.getElementById('set-api-msg');if(!val.startsWith('sk-ant-')){msg.style.color='#FF4D6D';msg.textContent='Clé invalide — doit commencer par sk-ant-';return;}localStorage.setItem('planify_api_key',val);msg.style.color='#4CAF50';msg.textContent='✓ Clé enregistrée.';}
+function saveApiKey(){const val=document.getElementById('set-api-key').value.trim();const msg=document.getElementById('set-api-msg');if(!val.startsWith('AIza')){msg.style.color='#FF4D6D';msg.textContent='Clé invalide — doit commencer par AIza';return;}localStorage.setItem('planify_api_key',val);msg.style.color='#4CAF50';msg.textContent='✓ Clé Gemini enregistrée.';}
 function toggleApiKeyVis(){const inp=document.getElementById('set-api-key');inp.type=inp.type==='password'?'text':'password';}
 function getBraveKey(){return localStorage.getItem('planify_brave_key')||'';}
 function saveBraveKey(){const val=document.getElementById('set-brave-key').value.trim();const msg=document.getElementById('set-brave-msg');if(!val){localStorage.removeItem('planify_brave_key');msg.style.color='#4CAF50';msg.textContent='Clé supprimée.';return;}localStorage.setItem('planify_brave_key',val);msg.style.color='#4CAF50';msg.textContent='✓ Clé enregistrée. Recherche web activée!';}
