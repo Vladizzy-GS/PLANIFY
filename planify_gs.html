@@ -52,10 +52,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 @keyframes splFadeOut{to{opacity:0;transform:scale(.97)}}
 @keyframes splOrb{0%,100%{transform:scale(1) translate(0,0)}50%{transform:scale(1.15) translate(12px,-8px)}}
 input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outline:none;transition:background-color .25s,border-color .25s,color .2s;}
+select option{background:var(--inp-bg,#181828);color:var(--text,#e8e8f0);}
+[data-theme="light"] select option{background:#f8f8fc;color:#1a1a2a;}
 .inp{width:100%;padding:11px 14px;background:var(--inp-bg);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:15px}
 .inp:focus{border-color:rgba(255,77,109,.5)}
-.lbl{display:block;font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
-.assign-lbl{display:block;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.lbl{display:block;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.assign-lbl{display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
 .assign-inp{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px;box-sizing:border-box}
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;display:none;align-items:center;justify-content:center}
 .ovl.open{display:flex}
@@ -252,12 +254,74 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
 
   <!-- ALERTS -->
   <div id="page-alerts" class="page">
-    <div style="margin-bottom:24px">
-      <div style="font-size:12px;font-weight:600;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Notifications</div>
-      <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Alertes</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Notifications</div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Alertes</h1>
+      </div>
+      <button onclick="openAlertModal()" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#7B2FBE,#FF4D6D);color:#fff;font-size:14px;font-weight:700;cursor:pointer">+ Nouvelle alerte</button>
     </div>
-    <div id="uncompleted-section" style="max-width:700px;margin-bottom:4px"></div>
-    <div id="alert-list" style="display:grid;gap:10px;max-width:700px"></div>
+    <div id="uncompleted-section" style="max-width:720px;margin-bottom:4px"></div>
+    <div id="alert-list" style="display:grid;gap:10px;max-width:720px"></div>
+  </div>
+
+  <!-- ALERT MODAL -->
+  <div id="alert-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('alert-modal')">
+    <div class="modal-box" style="width:100%;max-width:500px;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h2 id="al-modal-title" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Nouvelle alerte</h2>
+        <button onclick="closeModal('alert-modal')" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+      </div>
+      <!-- Type toggle -->
+      <div style="display:flex;background:var(--card-bg2);border-radius:9px;border:1px solid var(--border2);overflow:hidden;margin-bottom:16px">
+        <button id="al-type-warn-btn" onclick="setAlertType('warn')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:rgba(247,127,0,.18);color:#F77F00;border-right:1px solid var(--border2)">⚠ Avertissement</button>
+        <button id="al-type-info-btn" onclick="setAlertType('info')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--text3)">ℹ Information</button>
+      </div>
+      <div style="display:grid;gap:13px">
+        <div style="display:grid;gap:5px"><label class="lbl">Titre *</label><input id="al-title" type="text" class="inp" placeholder="Ex: Réunion hebdo, Rappel deadline..."/></div>
+        <div style="display:grid;gap:5px"><label class="lbl">Message (optionnel)</label><textarea id="al-msg" class="inp" rows="2" style="resize:vertical" placeholder="Détails supplémentaires..."></textarea></div>
+        <div style="display:grid;gap:5px">
+          <label class="lbl">Fréquence</label>
+          <select id="al-freq" class="inp">
+            <option value="once">Une fois</option>
+            <option value="daily">Chaque jour</option>
+            <option value="weekdays">Jours ouvrables (lun–ven)</option>
+            <option value="weekly">Chaque semaine</option>
+            <option value="biweekly">Toutes les 2 semaines</option>
+            <option value="monthly">Chaque mois</option>
+            <option value="yearly">Chaque année</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="display:grid;gap:5px"><label class="lbl">Date</label><input id="al-date" type="date" class="inp"/></div>
+          <div style="display:grid;gap:5px"><label class="lbl">Heure</label><input id="al-timeofday" type="time" class="inp"/></div>
+        </div>
+        <div style="display:grid;gap:5px">
+          <label class="lbl">Lier à (optionnel)</label>
+          <select id="al-link-type" class="inp" oninput="updateAlertLinkOptions()">
+            <option value="">— Aucun —</option>
+            <option value="event">Événement existant</option>
+            <option value="priority">Priorité existante</option>
+          </select>
+        </div>
+        <div id="al-link-item-wrap" style="display:none"><select id="al-link-id" class="inp"><option value="">Choisir...</option></select></div>
+        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
+          <input type="checkbox" id="al-schedule" style="width:16px;height:16px;accent-color:#4CC9F0;flex-shrink:0"/>
+          <div><div style="font-size:14px;font-weight:600;color:var(--text)">Ajouter à l'horaire</div><div style="font-size:12px;color:var(--text5)">Crée un événement lié dans votre calendrier</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
+          <input type="checkbox" id="al-sms" onchange="toggleAlertSms()" style="width:16px;height:16px;accent-color:#4CAF50;flex-shrink:0"/>
+          <div><div style="font-size:14px;font-weight:600;color:var(--text)">Recevoir par texto</div><div style="font-size:12px;color:var(--text5)">La notification sera aussi visible sur la plateforme</div></div>
+        </label>
+        <div id="al-sms-phone-row" style="display:none"><input id="al-sms-phone" type="tel" class="inp" placeholder="Ex: 418-555-0123"/></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button id="al-del-btn" onclick="deleteCurrentAlert()" style="display:none;padding:10px 18px;border-radius:10px;border:1px solid rgba(255,77,109,.35);background:transparent;color:#FF4D6D;font-size:14px;font-weight:600;cursor:pointer">Supprimer</button>
+        <button onclick="saveAlert()" id="al-save-btn" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#7B2FBE,#FF4D6D);color:#fff;font-size:14px;font-weight:700;cursor:pointer">Créer l'alerte</button>
+      </div>
+      <input type="hidden" id="al-id"/>
+      <input type="hidden" id="al-type-val" value="info"/>
+    </div>
   </div>
 
   <!-- TÂCHES À FAIRE -->
@@ -783,11 +847,13 @@ function renderTasks(){
   const upcoming=evts.filter(ev=>{const s=localDate(ev.sd);s.setHours(0,0,0,0);return s>today&&!ev.done;}).sort((a,b)=>localDate(a.sd)-localDate(b.sd));
   const activePris=getPris().filter(p=>p.status!=='Terminé');
   const totalDone=evts.filter(e=>e.done).length,totalEvts=evts.length,pct=totalEvts?Math.round(totalDone/totalEvts*100):0;
-  // Per-column layout (freeflow drag)
-  const defOrder=admin?['overdue','today','upcoming','priorities','assign']:['overdue','today','upcoming','priorities'];
+  // Per-column layout (freeflow drag) — 'today' is pinned (not draggable)
+  const defOrder=admin?['overdue','upcoming','priorities','assign']:['overdue','upcoming','priorities'];
   const layout=getTasksLayout(defOrder);
-  // Widget wrapper
+  // Draggable widget wrapper
   const W=(key,icon,title,badge,color,content)=>`<div class="task-widget" data-key="${key}" draggable="true" ondragstart="tasksDragStart(event,'${key}')" ondragover="tasksDragOver(event)" ondrop="tasksDrop(event,'${key}')" ondragend="tasksDragEnd(event)" ondragleave="tasksDragLeave(event)" style="background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);overflow:hidden;transition:box-shadow .2s,outline .15s"><div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border2);cursor:grab;user-select:none;background:var(--card-bg2)"><span style="font-size:15px;color:${color}">${icon}</span><span style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;flex:1">${title}</span>${badge!==null?`<span style="background:${color}25;color:${color};border-radius:8px;padding:1px 8px;font-size:12px;font-weight:700">${badge}</span>`:''}<span style="color:var(--text5);font-size:13px;letter-spacing:1px">⠿</span></div><div style="padding:14px 16px">${content}</div></div>`;
+  // Static (pinned) widget — no drag, highlighted border, 📌 badge
+  const WPin=(icon,title,badge,color,content)=>`<div class="task-widget" style="background:var(--card-bg);border-radius:14px;border:2px solid ${color}44;overflow:hidden"><div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid ${color}22;background:${color}08"><span style="font-size:15px;color:${color}">${icon}</span><span style="font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.06em;flex:1">${title}</span>${badge!==null?`<span style="background:${color}25;color:${color};border-radius:8px;padding:1px 8px;font-size:12px;font-weight:700">${badge}</span>`:''}<span style="font-size:10px;font-weight:700;color:${color}99;background:${color}15;border-radius:6px;padding:2px 8px">📌</span></div><div style="padding:14px 16px">${content}</div></div>`;
   // OVERDUE
   const overdueC=overdue.length?`<div style="display:grid;gap:8px">${overdue.map(ev=>taskCard(ev,true)).join('')}</div>`:`<div style="text-align:center;padding:24px;color:var(--text5);font-size:13px">✓ Aucun retard</div>`;
   // TODAY
@@ -798,10 +864,10 @@ function renderTasks(){
   const upcomingC=upHtml||`<div style="text-align:center;padding:24px;color:var(--text5);font-size:13px">Aucune tâche à venir</div>`;
   // PRIORITIES
   const priC=activePris.length?`<div style="display:grid;gap:10px">${activePris.map(p=>priorityTaskCard(p)).join('')}</div>`:`<div style="text-align:center;padding:24px;color:var(--text5);font-size:13px">Aucune priorité active</div>`;
-  // Build sections map
+  // Build sections map — today is pinned separately
+  const todayWidget=WPin('◷',"Aujourd'hui",todayEvts.length,'#4CC9F0',todayC);
   const sections={
     overdue:W('overdue','⚠','En retard',overdue.length,'#FF4D6D',overdueC),
-    today:W('today','◷',"Aujourd'hui",todayEvts.length,'#4CC9F0',todayC),
     upcoming:W('upcoming','◫','À venir',upcoming.length,'#FFB703',upcomingC),
     priorities:W('priorities','◈','Priorités actives',activePris.length,'#7B2FBE',priC),
   };
@@ -815,7 +881,7 @@ function renderTasks(){
   <div id="tasks-dashboard" style="display:flex;gap:0;align-items:flex-start;overflow:hidden">
     <div id="tasks-col-left" style="flex:${colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${leftW}${dropZone('left')}</div>
     <div id="tasks-col-resizer" onmousedown="tasksResizeStart(event)" style="flex:0 0 10px;cursor:col-resize;display:flex;align-items:stretch;justify-content:center;align-self:stretch;position:relative;z-index:5;user-select:none"><div style="width:3px;background:var(--border2);border-radius:2px;margin:0 auto;pointer-events:none;transition:background .15s;align-self:stretch"></div></div>
-    <div id="tasks-col-right" style="flex:${100-colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${rightW}${dropZone('right')}</div>
+    <div id="tasks-col-right" style="flex:${100-colRatio};display:flex;flex-direction:column;gap:14px;min-width:200px;overflow:hidden">${todayWidget}${rightW}${dropZone('right')}</div>
   </div>`;
   // Hover effect on resizer
   const resizer=pg.querySelector('#tasks-col-resizer');
@@ -1001,6 +1067,9 @@ function sendTaskToEmp(){
   if(!edata[empId])edata[empId]={evts:[],pris:[]};
   const evId=Date.now();
   edata[empId].evts.push({id:evId,title,sd,ed,sh,eh,color,allDay:isAllDay,pLevel,repeat,repeatEnd,branchIds,assignedByAdmin:true});
+  if(!edata[empId].alerts)edata[empId].alerts=[];
+  const adminName=isAdminSession()?'Administrateur':'Admin';
+  edata[empId].alerts.unshift({id:Date.now()+2,title:'Nouvelle tâche assignée',msg:`"${title}" — assignée par l'${adminName}`,timestamp:Date.now(),type:'task-assigned',read:false,system:true,empAlert:true});
   if(addPri){
     const newEntry={id:evId+1,title,desc:'Assigné par admin',color,pLevel,status:'À faire',parts:[],due:ed,linkedEvtId:evId};
     if(_assignPriOrder.length>0){
@@ -1279,7 +1348,7 @@ function loginAs(empId,isAdmin){
   const empSettingsBtn=document.getElementById('nav-emp-settings-btn');
   if(isAdmin){addWrap.style.display='flex';navAdmin.style.display='block';currentEmpId=emps[0]?.id||1;if(empSettingsBtn)empSettingsBtn.style.display='none';}
   else{addWrap.style.display='none';navAdmin.style.display='none';currentEmpId=empId;if(empSettingsBtn)empSettingsBtn.style.display='flex';}
-  renderSessionBadge();renderEmployees();updateTaskBadge();goTo('schedule');checkMorningBriefing();
+  renderSessionBadge();renderEmployees();updateTaskBadge();updateAlertBadge();goTo('schedule');checkMorningBriefing();
 }
 function renderSessionBadge(){
   let badge=document.getElementById('session-badge');
@@ -1498,7 +1567,7 @@ function renderEmployees(){
   }).join('');
 }
 
-function selectEmp(id){currentEmpId=id;const e=emps.find(x=>x.id===id);document.getElementById('sched-title').textContent='Horaire — '+(e?e.name:'');renderEmployees();if(currentPage==='schedule'){renderCalendar();renderCitySch();}if(currentPage==='priorities')renderPriorities();}
+function selectEmp(id){currentEmpId=id;const e=emps.find(x=>x.id===id);document.getElementById('sched-title').textContent='Horaire — '+(e?e.name:'');renderEmployees();updateAlertBadge();if(currentPage==='schedule'){renderCalendar();renderCitySch();}if(currentPage==='priorities')renderPriorities();if(currentPage==='alerts')renderAlerts();}
 
 function showEmpProfile(id){
   const e=emps.find(x=>x.id===id);if(!e)return;
@@ -1696,8 +1765,92 @@ function deleteBranch(id){const b=BRANCHES.find(x=>x.id===id);if(!b||!confirm(`S
 function countUncompletedTasks(){const today=new Date();today.setHours(0,0,0,0);const overdueEvts=getEvts().filter(ev=>{const end=localDate(ev.ed);end.setHours(23,59,59,0);return end<today&&!ev.done;}).length;const overduePris=getPris().filter(p=>{if(p.status==='Terminé'||!p.due)return false;const due=localDate(p.due);due.setHours(23,59,59,0);return due<today;}).length;return overdueEvts+overduePris;}
 function renderUncompletedTasks(){const section=document.getElementById('uncompleted-section');if(!section)return;const today=new Date();today.setHours(0,0,0,0);const overdueEvts=getEvts().filter(ev=>{const end=localDate(ev.ed);end.setHours(23,59,59,0);return end<today&&!ev.done;});const overduePris=getPris().filter(p=>{if(p.status==='Terminé'||!p.due)return false;const due=localDate(p.due);due.setHours(23,59,59,0);return due<today;});const total=overdueEvts.length+overduePris.length;if(total===0){section.innerHTML='';return;}let html=`<div style="margin-bottom:20px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:28px;height:28px;border-radius:8px;background:rgba(255,77,109,.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#FF4D6D;flex-shrink:0">${total}</div><span style="font-size:15px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">Tâches non complétées</span></div><div style="display:grid;gap:8px">`;overdueEvts.forEach(ev=>{const d=localDate(ev.sd);const dateFr=DAYS_FR[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];html+=`<div style="background:rgba(255,77,109,.06);border-radius:12px;border:1px solid rgba(255,77,109,.2);padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:4px;height:36px;border-radius:2px;background:${ev.color};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.title}</div><div style="font-size:12px;color:var(--text5);margin-top:2px">📅 ${dateFr} — Événement non coché</div></div><button onclick="markEvDone(${ev.id})" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(76,175,80,.3);background:transparent;color:#4CAF50;font-size:13px;cursor:pointer;font-weight:600;flex-shrink:0">✓ Fait</button></div>`;});overduePris.forEach(p=>{const d=localDate(p.due);const dateFr=DAYS_FR[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];html+=`<div style="background:rgba(247,127,0,.06);border-radius:12px;border:1px solid rgba(247,127,0,.2);padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:4px;height:36px;border-radius:2px;background:#F77F00;flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.title}</div><div style="font-size:12px;color:var(--text5);margin-top:2px">◆ Priorité · Échéance: ${dateFr} · ${p.status}</div></div><button onclick="goTo('priorities')" style="padding:5px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0">Voir</button></div>`;});html+=`</div></div>`;section.innerHTML=html;}
 function markEvDone(id){const ev=edata[currentEmpId]?.evts?.find(e=>e.id==id);if(ev){ev.done=true;renderCalendar();updateWkProgress();renderAlerts();updateTaskBadge();if(currentPage==='tasks')renderTasks();}}
-function renderAlerts(){renderUncompletedTasks();document.getElementById('alert-list').innerHTML=alerts.map(al=>{const col=al.type==='warn'?'#F77F00':'#4CC9F0';return`<div style="background:${al.read?'var(--card-bg2)':'var(--alert-bg)'};border-radius:12px;border:1px solid ${al.read?'var(--border)':col+'30'};padding:14px 18px;display:flex;align-items:flex-start;gap:14px;opacity:${al.read?0.5:1}"><div style="width:32px;height:32px;border-radius:8px;background:${col}15;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${col};flex-shrink:0">${al.type==='warn'?'!':'i'}</div><div style="flex:1"><div style="font-size:15px;color:var(--text);margin-bottom:4px;font-weight:500">${al.msg}</div><div style="font-size:13px;color:var(--text5)">${al.time}</div></div>${!al.read?`<button onclick="markRead(${al.id})" style="padding:5px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0;font-weight:500">Lu</button>`:''}</div>`;}).join('');const u=alerts.filter(a=>!a.read).length+countUncompletedTasks();const badge=document.getElementById('alert-badge');badge.textContent=u;badge.style.display=u?'inline':'none';}
-function markRead(id){alerts=alerts.map(a=>a.id===id?{...a,read:true}:a);renderAlerts();}
+function formatAlertTime(ts){if(!ts)return'';const d=Date.now()-ts;if(d<60000)return'À l\'instant';if(d<3600000)return'Il y a '+Math.floor(d/60000)+' min';if(d<86400000)return'Il y a '+Math.floor(d/3600000)+'h';return'Il y a '+Math.floor(d/86400000)+'j';}
+const _FREQ_LABELS={once:'',daily:'Chaque jour',weekdays:'Lun–Ven',weekly:'Chaque semaine',biweekly:'Toutes les 2 sem.',monthly:'Chaque mois',yearly:'Chaque année'};
+function getAllAlerts(){const emp=edata[currentEmpId]?.alerts||[];const gl=alerts.map(a=>({...a,_global:true}));return[...emp,...gl].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));}
+function updateAlertBadge(){const u=getAllAlerts().filter(a=>!a.read).length+countUncompletedTasks();const badge=document.getElementById('alert-badge');if(badge){badge.textContent=u;badge.style.display=u?'inline':'none';}}
+function renderAlerts(){
+  renderUncompletedTasks();
+  const all=getAllAlerts();
+  const unread=all.filter(a=>!a.read).length;
+  const list=document.getElementById('alert-list');if(!list)return;
+  list.innerHTML=all.length===0?`<div style="text-align:center;padding:48px;color:var(--text5);font-size:14px">Aucune alerte</div>`:all.map(al=>{
+    const col=al.type==='warn'?'#F77F00':al.type==='task-assigned'?'#FF4D6D':'#4CC9F0';
+    const icon=al.type==='warn'?'⚠':al.type==='task-assigned'?'✦':'ℹ';
+    const fl=_FREQ_LABELS[al.freq]||'';
+    const canEdit=!al.system&&!al._global;
+    const isEmp=!al._global;
+    return`<div style="background:${al.read?'var(--card-bg2)':'var(--alert-bg)'};border-radius:14px;border:1px solid ${al.read?'var(--border2)':col+'44'};padding:14px 18px;display:flex;align-items:flex-start;gap:14px;opacity:${al.read?.6:1};transition:opacity .2s">
+      <div style="width:36px;height:36px;border-radius:10px;background:${col}18;display:flex;align-items:center;justify-content:center;font-size:17px;color:${col};flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px">${al.title||al.msg}</div>
+        ${al.title&&al.msg?`<div style="font-size:13px;color:var(--text3);margin-bottom:5px">${al.msg}</div>`:''}
+        <div style="font-size:12px;color:var(--text5);display:flex;gap:10px;flex-wrap:wrap">
+          <span>${al.time||formatAlertTime(al.timestamp)}</span>
+          ${fl?`<span style="color:${col}99">↻ ${fl}</span>`:''}
+          ${al.sms?'<span>📱 Texto</span>':''}
+          ${al.addToSchedule?'<span>📅 Horaire</span>':''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;align-items:flex-start">
+        ${canEdit?`<button onclick="openAlertModal(${al.id},true)" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:13px;cursor:pointer">✏</button>`:''}
+        ${!al.read?`<button onclick="markReadAlert(${al.id},${isEmp})" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer">Lu</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  const u=unread+countUncompletedTasks();
+  const badge=document.getElementById('alert-badge');badge.textContent=u;badge.style.display=u?'inline':'none';}
+function markReadAlert(id,isEmp){
+  if(isEmp){const arr=edata[currentEmpId]?.alerts;if(arr){const a=arr.find(x=>x.id===id);if(a)a.read=true;}}
+  else{alerts=alerts.map(a=>a.id===id?{...a,read:true}:a);}
+  renderAlerts();}
+function markRead(id){markReadAlert(id,false);}
+// ── ALERT CRUD ────────────────────────────────────────────────────────
+let _alertType='info';
+function setAlertType(t){_alertType=t;const wb=document.getElementById('al-type-warn-btn'),ib=document.getElementById('al-type-info-btn'),tv=document.getElementById('al-type-val');if(wb){wb.style.background=t==='warn'?'rgba(247,127,0,.18)':'transparent';wb.style.color=t==='warn'?'#F77F00':'var(--text3)';}if(ib){ib.style.background=t==='info'?'rgba(76,201,240,.15)':'transparent';ib.style.color=t==='info'?'#4CC9F0':'var(--text3)';}if(tv)tv.value=t;}
+function toggleAlertSms(){const c=document.getElementById('al-sms')?.checked;const row=document.getElementById('al-sms-phone-row');if(row)row.style.display=c?'block':'none';}
+function updateAlertLinkOptions(){
+  const t=document.getElementById('al-link-type')?.value;
+  const wrap=document.getElementById('al-link-item-wrap');const sel=document.getElementById('al-link-id');
+  if(!wrap||!sel)return;wrap.style.display=t?'block':'none';if(!t)return;
+  const opts=t==='event'?(edata[currentEmpId]?.evts||[]).map(e=>`<option value="${e.id}">${e.title}</option>`).join('')
+    :(edata[currentEmpId]?.pris||[]).map(p=>`<option value="${p.id}">${p.title}</option>`).join('');
+  sel.innerHTML='<option value="">Choisir...</option>'+opts;}
+function openAlertModal(id,isEmp){
+  _alertType='info';
+  const al=id?(isEmp?(edata[currentEmpId]?.alerts||[]).find(a=>a.id===id):alerts.find(a=>a.id===id)):null;
+  document.getElementById('al-modal-title').textContent=al?"Modifier l'alerte":"Nouvelle alerte";
+  document.getElementById('al-save-btn').textContent=al?'Enregistrer':"Créer l'alerte";
+  document.getElementById('al-del-btn').style.display=al&&!al.system?'block':'none';
+  document.getElementById('al-id').value=al?al.id:'';
+  document.getElementById('al-id').dataset.emp=isEmp?'1':'';
+  document.getElementById('al-title').value=al?.title||al?.msg||'';
+  document.getElementById('al-msg').value=(al?.title&&al?.msg)?al.msg:'';
+  document.getElementById('al-freq').value=al?.freq||'once';
+  document.getElementById('al-date').value=al?.date||todayStr();
+  document.getElementById('al-timeofday').value=al?.timeOfDay||'';
+  document.getElementById('al-link-type').value=al?.linkType||'';
+  document.getElementById('al-schedule').checked=al?.addToSchedule||false;
+  document.getElementById('al-sms').checked=al?.sms||false;
+  document.getElementById('al-sms-phone').value=al?.smsPhone||'';
+  document.getElementById('al-sms-phone-row').style.display=al?.sms?'block':'none';
+  setAlertType(al?.type||'info');updateAlertLinkOptions();
+  if(al?.linkId)setTimeout(()=>{const s=document.getElementById('al-link-id');if(s)s.value=al.linkId;},50);
+  openModal('alert-modal');}
+function saveAlert(){
+  const title=document.getElementById('al-title').value.trim();if(!title){showToast('Titre requis','err');return;}
+  const id=document.getElementById('al-id').value;const isEmp=document.getElementById('al-id').dataset.emp==='1';
+  const al={title,msg:document.getElementById('al-msg').value.trim(),freq:document.getElementById('al-freq').value,date:document.getElementById('al-date').value,timeOfDay:document.getElementById('al-timeofday').value,linkType:document.getElementById('al-link-type').value,linkId:document.getElementById('al-link-id')?.value||'',addToSchedule:document.getElementById('al-schedule').checked,sms:document.getElementById('al-sms').checked,smsPhone:document.getElementById('al-sms-phone').value,type:document.getElementById('al-type-val').value,read:false,empAlert:true,timestamp:Date.now()};
+  if(!edata[currentEmpId].alerts)edata[currentEmpId].alerts=[];
+  if(id){const arr=edata[currentEmpId].alerts;const i=arr.findIndex(a=>a.id==id);if(i>=0){arr[i]={...arr[i],...al};}}
+  else{al.id=Date.now();edata[currentEmpId].alerts.unshift(al);}
+  if(al.addToSchedule&&!id){const d=al.date||todayStr();edata[currentEmpId].evts.push({id:Date.now()+1,title:al.title,sd:d,ed:d,allDay:!al.timeOfDay,sh:al.timeOfDay?parseInt(al.timeOfDay):9,eh:al.timeOfDay?parseInt(al.timeOfDay)+1:10,color:'#4CC9F0',pLevel:'Moyen',repeat:'Aucune',branchIds:[],alertLinked:true});}
+  closeModal('alert-modal');showToast(id?'Alerte modifiée':'Alerte créée ✓');renderAlerts();if(currentPage==='schedule')renderCalendar();}
+function deleteCurrentAlert(){
+  const id=document.getElementById('al-id').value;if(!id)return;
+  if(!edata[currentEmpId].alerts)return;
+  edata[currentEmpId].alerts=edata[currentEmpId].alerts.filter(a=>a.id!=id);
+  closeModal('alert-modal');showToast('Alerte supprimée','err');renderAlerts();}
 
 // ASSISTANT IA
 let aiHistories={},pendingEv=null,pendingPri=null;
