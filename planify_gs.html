@@ -248,10 +248,16 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
 
   <!-- AI ASSISTANT -->
   <div id="page-ai" class="page" style="display:none;flex-direction:column;overflow:hidden;padding:28px 32px">
-    <div style="flex-shrink:0;margin-bottom:18px">
-      <div style="font-size:12px;font-weight:600;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Planify</div>
-      <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Assistant IA <span style="color:#7B2FBE">✦</span></h1>
-      <p style="font-size:14px;color:var(--text5);margin-top:5px">Fournisseur, événement, succursale — posez vos questions en français naturel.</p>
+    <div style="flex-shrink:0;margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Planify</div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Assistant IA <span style="color:#7B2FBE">✦</span></h1>
+        <p style="font-size:14px;color:var(--text5);margin-top:5px">Fournisseur, événement, priorité — posez vos questions en français naturel.</p>
+      </div>
+      <button onclick="clearAiHistory()" title="Nouvelle conversation" style="margin-top:6px;flex-shrink:0;padding:8px 14px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text5);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+        Nouvelle conv.
+      </button>
     </div>
     <div id="ai-msgs" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;margin-bottom:16px;padding-right:4px"></div>
     <div style="flex-shrink:0">
@@ -411,15 +417,16 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
       <div style="background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);overflow:hidden">
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span style="font-size:14px;font-weight:700;color:var(--text)">Clé API Brave Search (Recherche en ligne)</span>
-          <span style="font-size:11px;font-weight:700;color:#4CC9F0;background:rgba(76,201,240,.1);border-radius:8px;padding:2px 8px;letter-spacing:.04em">OPTIONNEL</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Recherche web Google (Assistant IA)</span>
+          <span style="font-size:11px;font-weight:700;color:#06D6A0;background:rgba(6,214,160,.1);border-radius:8px;padding:2px 8px;letter-spacing:.04em">GRATUIT</span>
         </div>
         <div style="padding:16px 18px">
-          <p style="font-size:13px;color:var(--text4);margin-bottom:12px;line-height:1.6">Permet à l'assistant IA d'effectuer de vraies recherches web en temps réel. Clé gratuite sur <strong style="color:var(--text3)">brave.com/search/api</strong> (2 000 requêtes/mois).</p>
-          <label class="lbl">Clé Brave Search</label>
-          <input id="set-brave-key" type="password" class="inp" placeholder="BSAxxxxxxxxx…" style="margin-bottom:12px;font-family:monospace;letter-spacing:.04em"/>
-          <button onclick="saveBraveKey()" style="padding:9px 20px;border-radius:9px;border:none;background:linear-gradient(135deg,#4CC9F0,#06D6A0);color:#000;font-size:14px;font-weight:700;cursor:pointer">Enregistrer</button>
-          <div id="set-brave-msg" style="font-size:13px;margin-top:8px;min-height:18px"></div>
+          <p style="font-size:13px;color:var(--text4);margin-bottom:14px;line-height:1.6">Permet à l'assistant IA d'effectuer de vraies recherches Google en temps réel (fournisseurs, prix, réglementation). Inclus dans votre quota Gemini — <strong style="color:var(--text3)">aucune clé supplémentaire requise</strong>.</p>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+            <input type="checkbox" id="set-web-search" onchange="saveWebSearch()" style="width:18px;height:18px;cursor:pointer;accent-color:#4CC9F0;flex-shrink:0">
+            <span style="font-size:14px;font-weight:600;color:var(--text3)">Activer la recherche web en temps réel</span>
+          </label>
+          <div id="set-web-msg" style="font-size:13px;margin-top:10px;min-height:18px"></div>
         </div>
       </div>
     </div>
@@ -1103,47 +1110,45 @@ function renderAlerts(){document.getElementById('alert-list').innerHTML=alerts.m
 function markRead(id){alerts=alerts.map(a=>a.id===id?{...a,read:true}:a);renderAlerts();}
 
 // ASSISTANT IA
-let aiHistory=[],pendingEv=null;
+let aiHistories={},pendingEv=null,pendingPri=null;
+function getAiHistory(){return aiHistories[currentEmpId]||(aiHistories[currentEmpId]=[]);}
+function clearAiHistory(){aiHistories[currentEmpId]=[];document.getElementById('ai-msgs').innerHTML='';initAIChips();}
 const CHIPS=["📅 Créer inspection lundi 8h","📞 Contact fournisseur chauffage","🔍 Prix extincteur commercial Québec","🏢 Liste des succursales","📋 Mes événements cette semaine","🔧 Qui répare les drains ?","📅 Réunion équipe mardi 14h","🔍 Réglementation inspection bâtiment QC"];
 function initAIChips(){const el=document.getElementById('ai-chips');if(!el||el.innerHTML)return;el.innerHTML=CHIPS.map(s=>`<button onclick="useChip('${s.replace(/'/g,"\\'")}')" style="padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--chip-bg);color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">${s}</button>`).join('');}
 function useChip(txt){document.getElementById('ai-input').value=txt;sendAI();}
 function buildContext(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),d=now.getDate(),dow=now.getDay();const nextDates={};for(let i=0;i<14;i++){const dt=new Date(y,m,d+i);const name=DAYS_LONG[dt.getDay()];if(!nextDates[name])nextDates[name]=dateStr(dt);}const emp=emps.find(e=>e.id===currentEmpId)||emps[0];return`=== PLANIFY GS ===\nDate: ${dateStr(now)} (${DAYS_LONG[dow]})\nEmployé: ${emp.name} (${emp.role})\n=== PROCHAINS JOURS ===\n${Object.entries(nextDates).map(([n,dt])=>`${n} = ${dt}`).join('\n')}\n=== SUCCURSALES ===\n${BRANCHES.map(b=>`[${b.id}] ${b.short} — ${b.name}`).join('\n')}\n=== FOURNISSEURS ===\n${sups.map(s=>`${s.name} | ${s.cat} | ${s.city} | TEL:${s.phone}`).join('\n')}\n=== ÉVÉNEMENTS ===\n${getEvts().length?getEvts().map(e=>`- "${e.title}" | ${e.sd} | branches:${e.branchIds.join(',')}`).join('\n'):'(aucun)'}`;}
-function buildSystemPrompt(){const hasSearch=!!getBraveKey();const emp=emps.find(e=>e.id===currentEmpId)||emps[0];return`Tu es l'assistant IA personnel de ${emp.name} dans Planify GS — une app de gestion d'équipe terrain (Gestion des Services).
+function buildSystemPrompt(){const webOn=getWebSearch();const emp=emps.find(e=>e.id===currentEmpId)||emps[0];return`Tu es l'assistant IA super-utilisateur de ${emp.name} dans Planify GS — une app de gestion d'équipe terrain.
 
 ${buildContext()}
 
 ═══ TES CAPACITÉS ═══
 
 1. RÉPONDRE AUX QUESTIONS
-   Réponds à toute question : fournisseurs, succursales, tâches, planning, conseils pratiques, informations générales. Utilise toujours les vraies données du contexte quand disponibles.
+   Réponds à toute question : fournisseurs, succursales, tâches, planning, conseils pratiques, réglementation, prix.
+   FOURNISSEURS : Vérifie TOUJOURS d'abord dans la liste "=== FOURNISSEURS ===" du contexte. Si trouvé, donne les infos directement (nom, téléphone, adresse). Si NON trouvé dans la liste${webOn?' et que la recherche web est activée, cherche-le en ligne automatiquement':', indique qu\'il n\'est pas dans la base de données et propose de l\'ajouter'}.
 
 2. CRÉER UN ÉVÉNEMENT / RÉSERVATION / RDV
-   Quand l'employé veut créer un événement, une inspection, un RDV ou une réunion, génère CE TAG exactement à la fin de ta réponse (après ton message) :
+   Quand l'employé veut créer un événement, une inspection, un RDV ou une réunion, génère CE TAG à la fin :
    ##EV:titre|YYYY-MM-DD|heureDebut|heureFin|branchIds##
-   - heureDebut et heureFin sont des entiers 0–23 (ex: 9 pour 9h00, 17 pour 17h00)
-   - Pour une journée entière, utilise 0|0
-   - branchIds = IDs de succursales séparés par virgule (ex: drum,sd) ou vide
-   - Déduis la date à partir des "PROCHAINS JOURS" du contexte
-   Exemples valides :
-   ##EV:Inspection Drummondville|2026-03-16|8|10|drum##
-   ##EV:Réunion équipe|2026-03-17|14|15|##
-   ##EV:Journée formation|2026-03-18|0|0|##
-   ##EV:Visite fournisseur|2026-03-19|9|11|sd,sher##
-${hasSearch?`
-3. RECHERCHE EN LIGNE (ACTIVÉE)
-   Si la question nécessite une information récente, un prix actuel, un contact, une actualité ou toute donnée web en temps réel, génère CE TAG :
-   ##SEARCH:ta requête de recherche optimisée##
-   Je ferai la recherche Brave Search et t'enverrai les résultats pour que tu puisses répondre avec des informations à jour.
-   Exemples : ##SEARCH:prix extincteur commercial Québec 2026##
-   ##SEARCH:réglementation inspection bâtiment Québec##`:`
-3. RECHERCHE EN LIGNE (NON ACTIVÉE)
-   La recherche web n'est pas configurée. Réponds avec tes connaissances générales et indique si l'info pourrait être plus récente.`}
+   - heureDebut et heureFin : entiers 0–23. Journée entière = 0|0
+   - branchIds : IDs séparés par virgule ou vide
+   - Déduis la date depuis "PROCHAINS JOURS" du contexte
+   Exemples : ##EV:Inspection Drummondville|2026-03-16|8|10|drum##  ##EV:Réunion équipe|2026-03-17|14|15|##
+
+3. CRÉER UNE PRIORITÉ / TÂCHE
+   Quand l'employé veut ajouter une tâche, une priorité ou un rappel, génère CE TAG à la fin :
+   ##PRI:titre|Haute/Moyen/Basse|YYYY-MM-DD##
+   - Le niveau (Haute/Moyen/Basse) et la date d'échéance sont optionnels (laisser vide si non précisés)
+   Exemples : ##PRI:Commander extincteurs|Haute|2026-03-20##  ##PRI:Rappeler fournisseur chauffage||##
+${webOn?`
+4. RECHERCHE WEB (ACTIVÉE via Google)
+   Tu as accès à la recherche Google en temps réel. Utilise-la automatiquement pour : prix actuels, contacts de fournisseurs non listés, réglementation, actualités.`:''}
 
 ═══ RÈGLES ═══
 - Réponds TOUJOURS en français, de manière concise et pratique
-- Utilise les vraies données du contexte (fournisseurs, succursales, événements existants)
-- Pour les créations d'événements : confirme d'abord les détails dans ta réponse, puis génère le tag EV
-- Ne génère un tag EV QUE si l'employé demande explicitement de créer/réserver/planifier quelque chose`;}
+- Utilise les vraies données du contexte en priorité
+- Confirme les détails avant de générer un tag action
+- Ne génère un tag EV ou PRI QUE si l'employé le demande explicitement`;}
 
 function addAIBubble(role,html,actions){const msgs=document.getElementById('ai-msgs');const isUser=role==='user';const el=document.createElement('div');el.style.cssText=`display:flex;gap:12px;align-items:flex-start;animation:fU .2s ease;${isUser?'flex-direction:row-reverse':''}`;el.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;${isUser?'background:linear-gradient(135deg,#FF4D6D,#F77F00)':'background:linear-gradient(135deg,#7B2FBE,#4CC9F0)'}">${isUser?'Vo':'IA'}</div><div style="max-width:85%"><div style="background:${isUser?'rgba(255,77,109,.1)':'var(--stat-bg)'};border:1px solid ${isUser?'rgba(255,77,109,.2)':'var(--border3)'};border-radius:${isUser?'16px 4px 16px 16px':'4px 16px 16px 16px'};padding:14px 18px;font-size:14px;line-height:1.7;color:var(--text)">${html}</div>${actions?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${actions}</div>`:''}</div>`;msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;}
 async function sendAI(){
@@ -1152,46 +1157,32 @@ if(!getApiKey()){addAIBubble('assistant','<span style="color:#FFB703">⚠ Clé A
 inp.value='';addAIBubble('user',msg.replace(/\n/g,'<br>'));
 const msgs=document.getElementById('ai-msgs');
 const loader=document.createElement('div');
-loader.innerHTML=`<div style="font-size:13px;color:var(--text5);font-style:italic;padding:8px 0">✦ Analyse…</div>`;
+const webOn=getWebSearch();
+loader.innerHTML=`<div style="font-size:13px;color:var(--text5);font-style:italic;padding:8px 0">${webOn?'🔍 Recherche…':'✦ Analyse…'}</div>`;
 msgs.appendChild(loader);msgs.scrollTop=msgs.scrollHeight;
-aiHistory.push({role:'user',content:msg});
-function toGeminiContents(hist){return hist.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));}
-function geminiCall(contents,sysPr,maxTok){return fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:sysPr}]},contents,generationConfig:{maxOutputTokens:maxTok}})});}
+const hist=getAiHistory();
+hist.push({role:'user',content:msg});
+function toGC(h){return h.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));}
 try{
-const res=await geminiCall(toGeminiContents(aiHistory.slice(-12)),buildSystemPrompt(),1024);
+const body={system_instruction:{parts:[{text:buildSystemPrompt()}]},contents:toGC(hist.slice(-12)),generationConfig:{maxOutputTokens:1024}};
+if(webOn)body.tools=[{google_search:{}}];
+const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const data=await res.json();
-const raw=(data.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
-let finalRaw=raw;
-const searchMatch=raw.match(/##SEARCH:([^#]+)##/);
-if(searchMatch&&getBraveKey()){
-  loader.innerHTML=`<div style="font-size:13px;color:var(--text5);font-style:italic;padding:8px 0">🔍 Recherche en ligne…</div>`;
-  const query=searchMatch[1].trim();
-  const results=await webSearch(query);
-  if(results){
-    aiHistory.push({role:'assistant',content:raw});
-    aiHistory.push({role:'user',content:`Résultats de recherche web pour "${query}":\n\n${results}\n\nSynthétise ces résultats pour répondre à ma question. Cite les sources pertinentes.`});
-    const res2=await geminiCall(toGeminiContents(aiHistory.slice(-14)),buildSystemPrompt(),1024);
-    const data2=await res2.json();
-    finalRaw=(data2.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
-    aiHistory.push({role:'assistant',content:finalRaw});
-  }else{aiHistory.push({role:'assistant',content:raw});finalRaw=raw.replace(/##SEARCH:[^#]+##/g,'').trim();}
-}else if(searchMatch&&!getBraveKey()){
-  // Gemini a généré un tag SEARCH mais pas de clé Brave — relancer sans recherche
-  aiHistory.push({role:'user',content:'La recherche web n\'est pas disponible. Réponds directement à ma question avec tes connaissances générales, sans générer de tag SEARCH.'});
-  const res3=await geminiCall(toGeminiContents(aiHistory.slice(-14)),buildSystemPrompt(),1024);
-  const data3=await res3.json();
-  finalRaw=(data3.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
-  aiHistory.push({role:'assistant',content:finalRaw});
-}else{aiHistory.push({role:'assistant',content:finalRaw});}
 loader.remove();
-const evMatch=finalRaw.match(/##EV:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d+)\|(\d+)\|([^#]*)##/);
-const displayText=finalRaw.replace(/##EV:[^#]*##/g,'').replace(/##SEARCH:[^#]*##/g,'').trim();
+if(data.error){hist.pop();addAIBubble('assistant',`<span style="color:#FF4D6D">Erreur API: ${data.error.message}</span>`);return;}
+const raw=(data.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+hist.push({role:'assistant',content:raw});
+const evMatch=raw.match(/##EV:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d+)\|(\d+)\|([^#]*)##/);
+const priMatch=raw.match(/##PRI:([^|]+)\|([^|]*)\|([^#]*)##/);
+const displayText=raw.replace(/##EV:[^#]*##/g,'').replace(/##PRI:[^#]*##/g,'').trim();
 const formatted=displayText.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
 let actions='';
 if(evMatch){const[,titre,dt,sh,eh,brRaw]=evMatch;pendingEv={titre:titre.trim(),date:dt,sh:parseInt(sh),eh:parseInt(eh),allDay:parseInt(sh)===0,branchIds:brRaw?brRaw.split(',').map(s=>s.trim()).filter(Boolean):[]};const dObj=localDate(dt);const dateFr=DAYS_FR[dObj.getDay()]+' '+dObj.getDate()+' '+MONTHS_FR[dObj.getMonth()];actions+=`<button id="ai-ev-btn" onclick="aiConfirmEvent()" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#FF4D6D,#F77F00);color:#fff;font-size:14px;font-weight:600;cursor:pointer">📅 Créer — ${pendingEv.titre} · ${dateFr}</button>`;}
+if(priMatch){const[,titre,niv,due]=priMatch;pendingPri={titre:titre.trim(),niv:(niv.trim()||'Moyen'),due:due.trim()};actions+=`<button id="ai-pri-btn" onclick="aiConfirmPri()" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#7B2FBE,#4CC9F0);color:#fff;font-size:14px;font-weight:600;cursor:pointer">◆ Créer priorité — ${pendingPri.titre} (${pendingPri.niv})</button>`;}
 addAIBubble('assistant',formatted||'(réponse vide)',actions||null);
 }catch(err){loader.remove();addAIBubble('assistant','<span style="color:#FF4D6D">Erreur de connexion. Vérifie ta clé API.</span>');}}
 function aiConfirmEvent(){const p=pendingEv;if(!p)return;edata[currentEmpId].evts.push({id:Date.now(),title:p.titre,sd:p.date,ed:p.date,sh:p.sh,eh:p.eh,color:'#FF4D6D',allDay:p.allDay,pLevel:'Moyen',repeat:'Aucune',branchIds:p.branchIds});showToast('Événement créé!');renderCalendar();renderCitySch();const b=document.getElementById('ai-ev-btn');if(b){b.textContent='✓ Créé';b.disabled=true;}}
+function aiConfirmPri(){const p=pendingPri;if(!p)return;if(!edata[currentEmpId])edata[currentEmpId]={evts:[],pris:[]};const pris=edata[currentEmpId].pris||[];pris.push({id:Date.now(),rank:pris.length+1,title:p.titre,status:'À faire',pLevel:p.niv,due:p.due||'',parts:[],notes:''});edata[currentEmpId].pris=pris;showToast('Priorité créée!');if(currentPage==='priorities')renderPriorities();const b=document.getElementById('ai-pri-btn');if(b){b.textContent='✓ Créée';b.disabled=true;}}
 
 // ═══ AGENT IA ADMIN ═══
 let admAiHistory=[];
@@ -1439,10 +1430,9 @@ async function genAIBrief(){
 function getApiKey(){return localStorage.getItem('planify_api_key')||'';}
 function saveApiKey(){const val=document.getElementById('set-api-key').value.trim();const msg=document.getElementById('set-api-msg');if(!val.startsWith('AIza')){msg.style.color='#FF4D6D';msg.textContent='Clé invalide — doit commencer par AIza';return;}localStorage.setItem('planify_api_key',val);msg.style.color='#4CAF50';msg.textContent='✓ Clé Gemini enregistrée.';}
 function toggleApiKeyVis(){const inp=document.getElementById('set-api-key');inp.type=inp.type==='password'?'text':'password';}
-function getBraveKey(){return localStorage.getItem('planify_brave_key')||'';}
-function saveBraveKey(){const val=document.getElementById('set-brave-key').value.trim();const msg=document.getElementById('set-brave-msg');if(!val){localStorage.removeItem('planify_brave_key');msg.style.color='#4CAF50';msg.textContent='Clé supprimée.';return;}localStorage.setItem('planify_brave_key',val);msg.style.color='#4CAF50';msg.textContent='✓ Clé enregistrée. Recherche web activée!';}
-async function webSearch(query){const key=getBraveKey();if(!key)return null;try{const res=await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,{headers:{'Accept':'application/json','Accept-Encoding':'gzip','X-Subscription-Token':key}});if(!res.ok)return null;const data=await res.json();return(data.web?.results||[]).slice(0,5).map(r=>`**${r.title}**\n${r.url}\n${r.description||''}`).join('\n\n');}catch{return null;}}
-function loadApiKeyField(){const k=getApiKey();if(k){const inp=document.getElementById('set-api-key');if(inp)inp.value=k;}const b=getBraveKey();if(b){const inp=document.getElementById('set-brave-key');if(inp)inp.value=b;}}
+function getWebSearch(){return localStorage.getItem('planify_web_search')==='1';}
+function saveWebSearch(){const chk=document.getElementById('set-web-search');const msg=document.getElementById('set-web-msg');if(!chk)return;localStorage.setItem('planify_web_search',chk.checked?'1':'0');msg.style.color='#4CAF50';msg.textContent=chk.checked?'✓ Recherche web activée — Google via Gemini.':'Recherche web désactivée.';}
+function loadApiKeyField(){const k=getApiKey();if(k){const inp=document.getElementById('set-api-key');if(inp)inp.value=k;}const chk=document.getElementById('set-web-search');if(chk)chk.checked=getWebSearch();}
 
 // INIT
 (function init(){
