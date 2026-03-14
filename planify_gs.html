@@ -135,6 +135,7 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
     <button class="nav-btn" data-page="priorities" onclick="goTo('priorities')"><span style="font-size:17px">◈</span> Priorités</button>
     <button class="nav-btn" data-page="map" onclick="goTo('map')"><span style="font-size:17px">◎</span> Fournisseurs</button>
     <button class="nav-btn" data-page="alerts" onclick="goTo('alerts')"><span style="font-size:17px">◉</span> <span style="flex:1">Alertes</span><span id="alert-badge" style="background:#FF4D6D;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 7px;display:none">0</span></button>
+    <button class="nav-btn" data-page="tasks" onclick="goTo('tasks')"><span style="font-size:17px">☑</span> <span style="flex:1">Tâches</span><span id="task-badge" style="background:#FF4D6D;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 7px;display:none">0</span></button>
     <button class="nav-btn" data-page="ai" onclick="goTo('ai')"><span style="font-size:17px">✦</span> Assistant IA</button>
     <button class="nav-btn" id="nav-emp-settings-btn" data-page="emp-settings" onclick="goTo('emp-settings')" style="display:none"><span style="font-size:17px">⚙</span> Paramètres</button>
     <div id="nav-admin-btns" style="display:none">
@@ -256,6 +257,9 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
     <div id="uncompleted-section" style="max-width:700px;margin-bottom:4px"></div>
     <div id="alert-list" style="display:grid;gap:10px;max-width:700px"></div>
   </div>
+
+  <!-- TÂCHES À FAIRE -->
+  <div id="page-tasks" class="page"></div>
 
   <!-- AI ASSISTANT -->
   <div id="page-ai" class="page" style="display:none;flex-direction:column;overflow:hidden;padding:28px 32px">
@@ -699,6 +703,118 @@ let ADMIN_PIN_VAL='1234';
 let currentSession=null;
 let pinTarget=null,pinBuffer='';
 
+// ── TÂCHES ────────────────────────────────────────────────────────
+function updateTaskBadge(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const pending=getEvts().filter(ev=>{const e=localDate(ev.ed);e.setHours(23,59,59);return!ev.done&&e>=today;}).length
+               +getPris().filter(p=>p.status!=='Terminé').length;
+  const b=document.getElementById('task-badge');
+  if(b){b.textContent=pending;b.style.display=pending?'inline':'none';}
+}
+function taskCard(ev,isOverdue){
+  const done=!!ev.done;
+  const timeStr=ev.allDay?'Toute la journée':`${ev.sh}h – ${ev.eh}h`;
+  const brStr=ev.branchIds&&ev.branchIds.length?' · '+ev.branchIds.join(', '):'';
+  return`<div style="background:${done?'var(--card-bg2)':'var(--card-bg)'};border-radius:12px;border:1px solid ${isOverdue&&!done?'rgba(255,77,109,.25)':'var(--border2)'};padding:14px 16px;display:flex;align-items:center;gap:14px;opacity:${done?.55:1};transition:all .2s">
+    <button type="button" onclick="toggleEvDone(${ev.id})" style="width:22px;height:22px;border-radius:6px;border:2px solid ${done?'#4CAF50':'var(--border2)'};background:${done?'#4CAF50':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-appearance:none;appearance:none;transition:all .15s">
+      ${done?`<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>`:''}
+    </button>
+    <div style="width:4px;height:38px;border-radius:2px;background:${ev.color};flex-shrink:0"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:600;color:${done?'var(--text4)':'var(--text)'};${done?'text-decoration:line-through':''}; white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.title}</div>
+      <div style="font-size:12px;color:var(--text5);margin-top:3px">${timeStr}${brStr}</div>
+    </div>
+    ${isOverdue&&!done?`<span style="font-size:11px;font-weight:700;color:#FF4D6D;background:rgba(255,77,109,.1);border-radius:6px;padding:2px 8px;flex-shrink:0">EN RETARD</span>`:''}
+    ${done?`<span style="font-size:11px;font-weight:700;color:#4CAF50;background:rgba(76,175,80,.1);border-radius:6px;padding:2px 8px;flex-shrink:0">✓ Fait</span>`:''}
+  </div>`;
+}
+function priorityTaskCard(p){
+  const parts=(p.parts||[]).filter(Boolean);
+  const doneP=parts.filter(pt=>pt.done).length,totalP=parts.length;
+  const lvlColor=p.pLevel==='Élevé'?'#FF4D6D':p.pLevel==='Moyen'?'#F77F00':'#4CC9F0';
+  const stColor=p.status==='Terminé'?'#4CAF50':p.status==='En cours'?'#4CC9F0':'var(--text5)';
+  return`<div style="background:var(--card-bg);border-radius:12px;border:1px solid var(--border2);padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:${parts.length?'12px':'0'}">
+      <div style="width:4px;height:40px;border-radius:2px;background:${p.color||'#666'};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.title}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:700;color:${lvlColor};background:${lvlColor}20;border-radius:6px;padding:1px 7px">${p.pLevel}</span>
+          <span style="font-size:12px;color:${stColor};font-weight:500">${p.status}</span>
+          ${parts.length?`<span style="font-size:12px;color:var(--text5)">${doneP}/${totalP} sous-tâches</span>`:''}
+        </div>
+      </div>
+      <button onclick="goTo('priorities')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0">→</button>
+    </div>
+    ${parts.length?`<div style="display:grid;gap:6px;padding-left:16px">${parts.map((pt,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;opacity:${pt.done?.5:1}">
+        <button type="button" onclick="togglePart(${p.id},${i})" style="width:18px;height:18px;border-radius:5px;border:2px solid ${pt.done?'#4CAF50':'var(--border2)'};background:${pt.done?'#4CAF50':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-appearance:none;appearance:none;transition:all .15s">
+          ${pt.done?`<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>`:''}
+        </button>
+        <span style="font-size:13px;color:${pt.done?'var(--text4)':'var(--text)'};${pt.done?'text-decoration:line-through':''}">${pt.label}</span>
+      </div>`).join('')}</div>`:''}
+  </div>`;
+}
+function renderTasks(){
+  const pg=document.getElementById('page-tasks');if(!pg)return;
+  const today=new Date();today.setHours(0,0,0,0);
+  const evts=getEvts();
+  const overdue=evts.filter(ev=>{const e=localDate(ev.ed);e.setHours(23,59,59,0);return e<today&&!ev.done;}).sort((a,b)=>localDate(b.sd)-localDate(a.sd));
+  const upcoming=evts.filter(ev=>{const e=localDate(ev.ed);e.setHours(23,59,59,0);return e>=today;}).sort((a,b)=>localDate(a.sd)-localDate(b.sd));
+  // Group upcoming by day
+  const groups={};
+  upcoming.forEach(ev=>{const d=localDate(ev.sd);d.setHours(0,0,0,0);const key=d<today?dateStr(today):ev.sd;if(!groups[key])groups[key]=[];if(!groups[key].find(x=>x.id===ev.id))groups[key].push(ev);});
+  let html='';
+  if(overdue.length){html+=`<div style="margin-bottom:24px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font-size:13px;font-weight:700;color:#FF4D6D;text-transform:uppercase;letter-spacing:.06em">⚠ En retard</span><span style="background:rgba(255,77,109,.15);color:#FF4D6D;border-radius:8px;padding:1px 8px;font-size:12px;font-weight:700">${overdue.length}</span></div><div style="display:grid;gap:8px">${overdue.map(ev=>taskCard(ev,true)).join('')}</div></div>`;}
+  Object.keys(groups).sort().forEach(dk=>{
+    const d=localDate(dk);const isToday=sameDay(d,new Date());
+    const label=isToday?"Aujourd'hui — "+DAYS_LONG[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()]:DAYS_LONG[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];
+    const ge=groups[dk];const dc=ge.filter(e=>e.done).length;
+    html+=`<div style="margin-bottom:22px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font-size:13px;font-weight:700;color:${isToday?'#FF4D6D':'var(--text2)'};text-transform:uppercase;letter-spacing:.06em">${label}</span><span style="font-size:12px;color:var(--text5)">${dc}/${ge.length}</span>${isToday?'<span style="background:rgba(255,77,109,.12);color:#FF4D6D;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">Aujourd\'hui</span>':''}</div><div style="display:grid;gap:8px">${ge.map(ev=>taskCard(ev,false)).join('')}</div></div>`;
+  });
+  const activePris=getPris().filter(p=>p.status!=='Terminé');
+  if(activePris.length){html+=`<div style="margin-bottom:24px"><div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">◈ Priorités actives</div><div style="display:grid;gap:10px">${activePris.map(p=>priorityTaskCard(p)).join('')}</div></div>`;}
+  if(!html){html=`<div style="text-align:center;padding:60px 20px;color:var(--text5)"><div style="font-size:48px;margin-bottom:16px">✓</div><div style="font-size:18px;font-weight:700;color:var(--text3);font-family:'Syne',sans-serif">Tout est à jour !</div><div style="font-size:14px;margin-top:8px">Aucune tâche en attente.</div></div>`;}
+  pg.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px"><div><div style="font-size:12px;font-weight:600;color:var(--text5);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Planning</div><h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text)">Tâches à faire</h1><div style="font-size:13px;color:var(--text4);margin-top:3px">Synchronisé avec l'horaire</div></div><button onclick="goTo('schedule')" style="display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:10px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:13px;font-weight:600;cursor:pointer">◫ Voir l'horaire</button></div><div style="max-width:700px">${html}</div>`;
+  updateTaskBadge();
+}
+// ── BRIEFING MATIN ─────────────────────────────────────────────────
+function checkMorningBriefing(){
+  const h=new Date().getHours();
+  if(h>=6&&h<10){setTimeout(showMorningBriefing,600);}
+  else if(h<6){const now=new Date(),t8=new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,0,0);setTimeout(showMorningBriefing,t8-now);}
+}
+function showMorningBriefing(){
+  if(document.getElementById('morning-briefing'))return;
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayEvts=getEvts().filter(ev=>inRange(today,ev.sd,ev.ed));
+  const overdue=getEvts().filter(ev=>{const e=localDate(ev.ed);e.setHours(23,59,59);return e<today&&!ev.done;});
+  const emp=emps.find(e=>e.id===currentEmpId)||emps[0];
+  const nowH=new Date().getHours();
+  const greeting=nowH<12?'Bonjour':nowH<18?'Bon après-midi':'Bonsoir';
+  const todayLabel=DAYS_LONG[new Date().getDay()]+' '+new Date().getDate()+' '+MONTHS_FR[new Date().getMonth()];
+  const mo=document.createElement('div');
+  mo.id='morning-briefing';
+  mo.style.cssText='position:fixed;inset:0;z-index:7000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;animation:fU .3s ease;padding:16px';
+  mo.innerHTML=`<div style="background:var(--card-bg);border:1px solid var(--border2);border-radius:22px;padding:28px;max-width:500px;width:100%;max-height:82vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+      <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(255,77,109,.15),rgba(247,127,0,.15));border:1px solid rgba(255,77,109,.2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">☀️</div>
+      <div><div style="font-size:19px;font-weight:800;font-family:'Syne',sans-serif;color:var(--text)">${greeting}, ${emp.name.split(' ')[0]} !</div><div style="font-size:13px;color:var(--text4)">${todayLabel}</div></div>
+    </div>
+    ${overdue.length?`<div style="background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.2);border-radius:14px;padding:14px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#FF4D6D;margin-bottom:10px">⚠ ${overdue.length} tâche${overdue.length>1?'s':''} en retard</div>${overdue.slice(0,3).map(ev=>`<div style="font-size:13px;color:var(--text3);padding:5px 0;border-bottom:1px solid rgba(255,77,109,.1)">• ${ev.title}</div>`).join('')}${overdue.length>3?`<div style="font-size:12px;color:var(--text5);margin-top:6px">+ ${overdue.length-3} autre${overdue.length-3>1?'s':''}…</div>`:''}</div>`:''}
+    <div style="background:var(--card-bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:22px">
+      <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px">📅 Aujourd'hui — ${todayEvts.length} événement${todayEvts.length!==1?'s':''}</div>
+      ${todayEvts.length?todayEvts.slice(0,5).map(ev=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)"><div style="width:3px;height:28px;border-radius:2px;background:${ev.color};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:${ev.done?'var(--text4)':'var(--text)'};${ev.done?'text-decoration:line-through':''}; white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.title}</div><div style="font-size:11px;color:var(--text5)">${ev.allDay?'Toute la journée':`${ev.sh}h – ${ev.eh}h`}</div></div></div>`).join(''):`<div style="font-size:13px;color:var(--text5)">Aucun événement aujourd'hui 🎉</div>`}
+      ${todayEvts.length>5?`<div style="font-size:12px;color:var(--text5);text-align:center;margin-top:8px">+ ${todayEvts.length-5} autres…</div>`:''}
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('morning-briefing').remove();goTo('tasks')" style="flex:1;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FF4D6D,#F77F00);color:#fff;font-size:14px;font-weight:700;cursor:pointer">Voir mes tâches</button>
+      <button onclick="document.getElementById('morning-briefing').remove()" style="padding:13px 20px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer">Fermer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
 // ══════════════════════════════════════════════════════════════════
 // FIREBASE CONFIG — Remplir avec vos informations Firebase
 // 1. https://console.firebase.google.com → Créer un projet
@@ -911,7 +1027,7 @@ function loginAs(empId,isAdmin){
   const empSettingsBtn=document.getElementById('nav-emp-settings-btn');
   if(isAdmin){addWrap.style.display='flex';navAdmin.style.display='block';currentEmpId=emps[0]?.id||1;if(empSettingsBtn)empSettingsBtn.style.display='none';}
   else{addWrap.style.display='none';navAdmin.style.display='none';currentEmpId=empId;if(empSettingsBtn)empSettingsBtn.style.display='flex';}
-  renderSessionBadge();renderEmployees();goTo('schedule');
+  renderSessionBadge();renderEmployees();updateTaskBadge();goTo('schedule');checkMorningBriefing();
 }
 function renderSessionBadge(){
   let badge=document.getElementById('session-badge');
@@ -1095,6 +1211,7 @@ function goTo(page){
   if(page==='settings')showSetTab('general');
   if(page==='emp-settings')loadEmpSettingsFields();
   if(page==='admin-dashboard')renderAdminDash();
+  if(page==='tasks')renderTasks();
 }
 
 function toggleWeekend(){showWeekend=!showWeekend;const btn=document.getElementById('btn-wkend');btn.style.background=showWeekend?'rgba(255,77,109,.15)':'';btn.style.borderColor=showWeekend?'rgba(255,77,109,.5)':'';btn.style.color=showWeekend?'#FF4D6D':'';renderCalendar();renderCitySch();}
@@ -1222,7 +1339,7 @@ function renderCalendar(){
 }
 
 function updateWkProgress(){const evts=getEvts(),days=Array.from({length:7},(_,i)=>addDays(wkStart,i)),wkE=evts.filter(ev=>days.some(d=>inRange(d,ev.sd,ev.ed))),done=wkE.filter(ev=>ev.done===true).length,pct=wkE.length?Math.round(done/wkE.length*100):0;document.getElementById('wk-pct').textContent=pct+'%';document.getElementById('wk-bar').style.width=pct+'%';}
-function toggleEvDone(id){const ev=edata[currentEmpId]?.evts?.find(e=>e.id==id);if(ev){ev.done=!ev.done;renderCalendar();updateWkProgress();if(currentPage==='alerts')renderAlerts();}}
+function toggleEvDone(id){const ev=edata[currentEmpId]?.evts?.find(e=>e.id==id);if(ev){ev.done=!ev.done;renderCalendar();updateWkProgress();updateTaskBadge();if(currentPage==='alerts')renderAlerts();if(currentPage==='tasks')renderTasks();}}
 
 // DÉPLACEMENTS
 let citySchOpen=false;
@@ -1280,7 +1397,7 @@ function renderPriorities(){
     return`<div style="background:var(--pr-bg);border-radius:14px;border:1px solid ${p.color}22;padding:16px 18px 16px 22px;position:relative;margin-bottom:12px"><div style="position:absolute;top:16px;left:0;width:4px;height:34px;border-radius:0 3px 3px 0;background:${p.color}"></div>${p.locked?`<div style="position:absolute;top:-9px;right:14px;background:#FFB703;color:#0a0a12;border-radius:10px;font-size:11px;font-weight:700;padding:3px 10px">VERROUILLÉ</div>`:''}<div style="display:flex;align-items:flex-start;gap:14px"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding-top:2px"><div style="width:26px;height:26px;border-radius:7px;background:${p.color}22;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:${p.color}">${p.rank}</div><button onclick="movePR(${p.id},-1)" ${gi===0?'disabled':''} style="width:26px;height:18px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:${gi>0?'var(--text3)':'var(--border2)'};cursor:pointer;font-size:10px">▲</button><button onclick="movePR(${p.id},1)" ${gi===grp.length-1?'disabled':''} style="width:26px;height:18px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:${gi<grp.length-1?'var(--text3)':'var(--border2)'};cursor:pointer;font-size:10px">▼</button></div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">${p.title}</span><span style="padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;background:${pc(p.pLevel)}22;color:${pc(p.pLevel)}">● ${p.pLevel}</span><span style="padding:3px 10px;border-radius:10px;font-size:12px;font-weight:500;background:${sc(p.status)}18;color:${sc(p.status)}">${p.status}</span></div>${p.desc?`<div style="font-size:13px;color:var(--text4);margin-bottom:6px">${p.desc}</div>`:''}${progressBar}${partsHTML}</div><div style="display:flex;flex-direction:column;gap:6px"><button onclick="toggleLock(${p.id})" style="padding:6px 10px;border-radius:8px;background:${p.locked?'rgba(255,183,3,.12)':'transparent'};cursor:pointer;border:1px solid rgba(255,183,3,${p.locked?'.4':'.15'});color:#FFB703;font-size:12px">${p.locked?'Verr.':'Libre'}</button><button onclick="editPR(${p.id})" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:12px;cursor:pointer">Édit.</button><button onclick="${p.locked?'':('delPR('+p.id+')')}" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,77,109,.2);background:transparent;color:${p.locked?'var(--border2)':'#FF4D6D'};font-size:12px;cursor:pointer">Sup.</button></div></div></div>`;
   }).join('');
 }
-function togglePart(prId,partIdx){const p=edata[currentEmpId].pris.find(x=>x.id===prId);if(!p||!p.parts)return;p.parts[partIdx].done=!p.parts[partIdx].done;const prog=calcProgress(p.parts);if(prog===100)p.status='Terminé';else if(prog>0)p.status='En cours';renderPriorities();}
+function togglePart(prId,partIdx){const p=edata[currentEmpId].pris.find(x=>x.id===prId);if(!p||!p.parts)return;p.parts[partIdx].done=!p.parts[partIdx].done;const prog=calcProgress(p.parts);if(prog===100)p.status='Terminé';else if(prog>0)p.status='En cours';renderPriorities();updateTaskBadge();if(currentPage==='tasks')renderTasks();}
 function movePR(id,dir){const pris=edata[currentEmpId].pris,item=pris.find(p=>p.id===id);if(!item)return;const grp=[...pris].filter(p=>p.locked===item.locked).sort((a,b)=>a.rank-b.rank),gi=grp.findIndex(p=>p.id===id),gj=gi+dir;if(gj<0||gj>=grp.length)return;const rA=grp[gi].rank,rB=grp[gj].rank;edata[currentEmpId].pris=pris.map(p=>p.id===grp[gi].id?{...p,rank:rB}:p.id===grp[gj].id?{...p,rank:rA}:p);renderPriorities();}
 function toggleLock(id){const t=edata[currentEmpId].pris.map(p=>p.id===id?{...p,locked:!p.locked}:p),s=[...t].sort((a,b)=>a.rank-b.rank);edata[currentEmpId].pris=[...s.filter(p=>p.locked),...s.filter(p=>!p.locked)].map((p,i)=>({...p,rank:i+1}));renderPriorities();}
 function delPR(id){if(!confirm('Supprimer ?'))return;edata[currentEmpId].pris=edata[currentEmpId].pris.filter(p=>p.id!==id);showToast('Supprimé','err');renderPriorities();}
@@ -1323,7 +1440,7 @@ function deleteBranch(id){const b=BRANCHES.find(x=>x.id===id);if(!b||!confirm(`S
 // ALERTES
 function countUncompletedTasks(){const today=new Date();today.setHours(0,0,0,0);const overdueEvts=getEvts().filter(ev=>{const end=localDate(ev.ed);end.setHours(23,59,59,0);return end<today&&!ev.done;}).length;const overduePris=getPris().filter(p=>{if(p.status==='Terminé'||!p.due)return false;const due=localDate(p.due);due.setHours(23,59,59,0);return due<today;}).length;return overdueEvts+overduePris;}
 function renderUncompletedTasks(){const section=document.getElementById('uncompleted-section');if(!section)return;const today=new Date();today.setHours(0,0,0,0);const overdueEvts=getEvts().filter(ev=>{const end=localDate(ev.ed);end.setHours(23,59,59,0);return end<today&&!ev.done;});const overduePris=getPris().filter(p=>{if(p.status==='Terminé'||!p.due)return false;const due=localDate(p.due);due.setHours(23,59,59,0);return due<today;});const total=overdueEvts.length+overduePris.length;if(total===0){section.innerHTML='';return;}let html=`<div style="margin-bottom:20px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:28px;height:28px;border-radius:8px;background:rgba(255,77,109,.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#FF4D6D;flex-shrink:0">${total}</div><span style="font-size:15px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">Tâches non complétées</span></div><div style="display:grid;gap:8px">`;overdueEvts.forEach(ev=>{const d=localDate(ev.sd);const dateFr=DAYS_FR[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];html+=`<div style="background:rgba(255,77,109,.06);border-radius:12px;border:1px solid rgba(255,77,109,.2);padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:4px;height:36px;border-radius:2px;background:${ev.color};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.title}</div><div style="font-size:12px;color:var(--text5);margin-top:2px">📅 ${dateFr} — Événement non coché</div></div><button onclick="markEvDone(${ev.id})" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(76,175,80,.3);background:transparent;color:#4CAF50;font-size:13px;cursor:pointer;font-weight:600;flex-shrink:0">✓ Fait</button></div>`;});overduePris.forEach(p=>{const d=localDate(p.due);const dateFr=DAYS_FR[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()];html+=`<div style="background:rgba(247,127,0,.06);border-radius:12px;border:1px solid rgba(247,127,0,.2);padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:4px;height:36px;border-radius:2px;background:#F77F00;flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.title}</div><div style="font-size:12px;color:var(--text5);margin-top:2px">◆ Priorité · Échéance: ${dateFr} · ${p.status}</div></div><button onclick="goTo('priorities')" style="padding:5px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0">Voir</button></div>`;});html+=`</div></div>`;section.innerHTML=html;}
-function markEvDone(id){const ev=edata[currentEmpId]?.evts?.find(e=>e.id==id);if(ev){ev.done=true;renderCalendar();updateWkProgress();renderAlerts();}}
+function markEvDone(id){const ev=edata[currentEmpId]?.evts?.find(e=>e.id==id);if(ev){ev.done=true;renderCalendar();updateWkProgress();renderAlerts();updateTaskBadge();if(currentPage==='tasks')renderTasks();}}
 function renderAlerts(){renderUncompletedTasks();document.getElementById('alert-list').innerHTML=alerts.map(al=>{const col=al.type==='warn'?'#F77F00':'#4CC9F0';return`<div style="background:${al.read?'var(--card-bg2)':'var(--alert-bg)'};border-radius:12px;border:1px solid ${al.read?'var(--border)':col+'30'};padding:14px 18px;display:flex;align-items:flex-start;gap:14px;opacity:${al.read?0.5:1}"><div style="width:32px;height:32px;border-radius:8px;background:${col}15;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${col};flex-shrink:0">${al.type==='warn'?'!':'i'}</div><div style="flex:1"><div style="font-size:15px;color:var(--text);margin-bottom:4px;font-weight:500">${al.msg}</div><div style="font-size:13px;color:var(--text5)">${al.time}</div></div>${!al.read?`<button onclick="markRead(${al.id})" style="padding:5px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;flex-shrink:0;font-weight:500">Lu</button>`:''}</div>`;}).join('');const u=alerts.filter(a=>!a.read).length+countUncompletedTasks();const badge=document.getElementById('alert-badge');badge.textContent=u;badge.style.display=u?'inline':'none';}
 function markRead(id){alerts=alerts.map(a=>a.id===id?{...a,read:true}:a);renderAlerts();}
 
