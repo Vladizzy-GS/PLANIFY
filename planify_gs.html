@@ -55,6 +55,8 @@ input,select,button,textarea{font-family:'Inter',sans-serif;font-size:15px;outli
 .inp{width:100%;padding:11px 14px;background:var(--inp-bg);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:15px}
 .inp:focus{border-color:rgba(255,77,109,.5)}
 .lbl{display:block;font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.assign-lbl{display:block;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.assign-inp{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px;box-sizing:border-box}
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;display:none;align-items:center;justify-content:center}
 .ovl.open{display:flex}
 .bx{background:var(--card-bg);border:1px solid var(--border2);border-radius:18px;padding:30px;max-height:90vh;overflow-y:auto;width:480px}
@@ -810,6 +812,7 @@ function renderTasks(){
   // Hover effect on resizer
   const resizer=pg.querySelector('#tasks-col-resizer');
   if(resizer){resizer.addEventListener('mouseenter',()=>{resizer.querySelector('div').style.background='rgba(255,77,109,.6)';});resizer.addEventListener('mouseleave',()=>{resizer.querySelector('div').style.background='var(--border2)';});}
+  if(admin){renderAssignBranchPicker();renderColorPicker('assign-colors','assign-color','#FF4D6D');}
   updateTaskBadge();
 }
 function tasksResizeStart(e){
@@ -861,28 +864,35 @@ function tasksDrop(e,targetKey){
 }
 // ── ADMIN ASSIGN TASK ────────────────────────────────────────────────
 let assignAllDay=false;
+let selAssignBranches=[];
 let _assignPriOrder=[];
 let _assignPriDragKey=null;
 function buildAssignTaskForm(){
   const empOpts=emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
   const todStr=dateStr(new Date());
-  assignAllDay=true;_assignPriOrder=[];
+  assignAllDay=true;selAssignBranches=[];_assignPriOrder=[];
   return`<div style="display:grid;gap:11px">
-    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Employé</label><select id="assign-emp" onchange="onAssignEmpChange()" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px">${empOpts}</select></div>
-    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Titre de la tâche</label><input id="assign-title" type="text" placeholder="Ex: Inspection succursale..." style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+    <div style="display:grid;gap:5px"><label class="assign-lbl">Employé *</label><select id="assign-emp" onchange="onAssignEmpChange()" class="assign-inp">${empOpts}</select></div>
+    <div style="display:grid;gap:5px"><label class="assign-lbl">Titre de la tâche *</label><input id="assign-title" type="text" placeholder="Ex: Inspection succursale..." class="assign-inp"></div>
     <div style="display:flex;background:var(--card-bg2);border-radius:9px;border:1px solid var(--border2);overflow:hidden">
       <button id="assign-allday-btn" onclick="setAssignAllDay(true)" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:rgba(255,77,109,.18);color:#FF4D6D;border-right:1px solid var(--border2)">Journée entière</button>
       <button id="assign-timed-btn" onclick="setAssignAllDay(false)" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--text5)">Heure précise</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date début</label><input id="assign-sd" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
-      <div id="assign-ed-wrap" style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date fin</label><input id="assign-ed" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+      <div style="display:grid;gap:5px"><label class="assign-lbl">Date début</label><input id="assign-sd" type="date" value="${todStr}" class="assign-inp"></div>
+      <div id="assign-ed-wrap" style="display:grid;gap:5px"><label class="assign-lbl">Date fin</label><input id="assign-ed" type="date" value="${todStr}" class="assign-inp"></div>
     </div>
     <div id="assign-hours-row" style="display:none;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure début</label><input id="assign-sh" type="number" value="9" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure fin</label><input id="assign-eh" type="number" value="10" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+      <div style="display:grid;gap:5px"><label class="assign-lbl">Heure début</label><input id="assign-sh" type="number" value="9" min="0" max="23" class="assign-inp"></div>
+      <div style="display:grid;gap:5px"><label class="assign-lbl">Heure fin</label><input id="assign-eh" type="number" value="10" min="0" max="23" class="assign-inp"></div>
     </div>
-    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Priorité</label><select id="assign-plevel" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"><option>Élevé</option><option selected>Moyen</option><option>Faible</option></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;gap:5px"><label class="assign-lbl">Priorité</label><select id="assign-plevel" class="assign-inp"><option>Élevé</option><option selected>Moyen</option><option>Faible</option></select></div>
+      <div style="display:grid;gap:5px"><label class="assign-lbl">Répétition</label><select id="assign-repeat" class="assign-inp"><option>Aucune</option><option>Chaque semaine</option><option>Chaque mois</option><option>Chaque année</option></select></div>
+    </div>
+    <div style="display:grid;gap:5px"><label class="assign-lbl">Succursale(s)</label><div id="assign-branches" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div></div>
+    <div style="display:grid;gap:5px"><label class="assign-lbl">Couleur</label><div id="assign-colors" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div></div>
+    <input type="hidden" id="assign-color" value="#FF4D6D"/>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--card-bg2)"><input type="checkbox" id="assign-add-pri" onchange="onAssignPriCheck()" style="width:16px;height:16px;cursor:pointer;accent-color:#4CAF50"><div><div style="font-size:13px;font-weight:600;color:var(--text)">Ajouter aux priorités</div><div style="font-size:11px;color:var(--text5);margin-top:2px">Classifie aussi dans les priorités de l'employé</div></div></label>
     <div id="assign-pri-section" style="display:none;border-radius:9px;border:1px solid rgba(76,175,80,.35);background:rgba(76,175,80,.05);padding:12px">
       <div style="font-size:11px;font-weight:700;color:#4CAF50;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Ordre des priorités</div>
@@ -892,6 +902,8 @@ function buildAssignTaskForm(){
     <button onclick="sendTaskToEmp()" style="padding:11px;border-radius:10px;background:#4CAF50;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.02em">✦ Envoyer la tâche</button>
   </div>`;
 }
+function renderAssignBranchPicker(){const el=document.getElementById('assign-branches');if(!el)return;el.innerHTML=BRANCHES.map(br=>{const s=selAssignBranches.includes(br.id);return`<div onclick="toggleAssignBr('${br.id}')" style="padding:5px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:${s?br.color+'22':'var(--chip-bg, var(--card-bg2))'};border:1px solid ${s?br.color+'55':'var(--border2)'};color:${s?br.color:'var(--text3)'}">${s?'✓ ':''}${br.short}</div>`;}).join('');}
+function toggleAssignBr(id){const i=selAssignBranches.indexOf(id);if(i>=0)selAssignBranches.splice(i,1);else selAssignBranches.push(id);renderAssignBranchPicker();}
 function setAssignAllDay(allDay){
   assignAllDay=allDay;
   const aB=document.getElementById('assign-allday-btn'),tB=document.getElementById('assign-timed-btn');
@@ -949,16 +961,17 @@ function sendTaskToEmp(){
   const ed=isAllDay?(document.getElementById('assign-ed')?.value||sd):sd;
   const sh=isAllDay?0:parseInt(document.getElementById('assign-sh').value)||9;
   const eh=isAllDay?0:parseInt(document.getElementById('assign-eh').value)||10;
-  const color='#FF4D6D';
+  const color=document.getElementById('assign-color')?.value||'#FF4D6D';
   const pLevel=document.getElementById('assign-plevel').value||'Moyen';
+  const repeat=document.getElementById('assign-repeat')?.value||'Aucune';
+  const branchIds=[...selAssignBranches];
   const addPri=document.getElementById('assign-add-pri').checked;
   if(!edata[empId])edata[empId]={evts:[],pris:[]};
   const evId=Date.now();
-  edata[empId].evts.push({id:evId,title,sd,ed,sh,eh,color,allDay:isAllDay,pLevel,repeat:'Aucune',branchIds:[],assignedByAdmin:true});
+  edata[empId].evts.push({id:evId,title,sd,ed,sh,eh,color,allDay:isAllDay,pLevel,repeat,branchIds,assignedByAdmin:true});
   if(addPri){
     const newEntry={id:evId+1,title,desc:'Assigné par admin',color,pLevel,status:'À faire',parts:[],due:ed,linkedEvtId:evId};
     if(_assignPriOrder.length>0){
-      // Apply the admin-defined order
       const ordered=_assignPriOrder.map((x,i)=>{
         if(x.isNew)return{...newEntry,rank:i+1};
         const existing=(edata[empId].pris||[]).find(p=>String(p.id)===x.id);
@@ -973,7 +986,15 @@ function sendTaskToEmp(){
   }
   const empName=emps.find(e=>e.id===empId)?.name||'Employé';
   showToast('Tâche envoyée à '+empName+' ✓');
-  if(currentEmpId===empId){renderCalendar();renderCitySch();updateTaskBadge();}
+  // Sync all relevant views regardless of which employee is active
+  renderAdminDash();
+  updateTaskBadge();
+  if(currentEmpId===empId){
+    renderCalendar();
+    renderCitySch();
+    if(currentPage==='priorities')renderPriorities();
+    if(currentPage==='alerts')renderAlerts();
+  }
   renderTasks();
 }
 // ── BRIEFING MATIN ─────────────────────────────────────────────────
