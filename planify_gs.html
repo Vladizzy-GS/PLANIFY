@@ -860,24 +860,84 @@ function tasksDrop(e,targetKey){
   _tasksDragKey=null;renderTasks();
 }
 // ── ADMIN ASSIGN TASK ────────────────────────────────────────────────
+let assignAllDay=false;
+let _assignPriOrder=[];
+let _assignPriDragKey=null;
 function buildAssignTaskForm(){
   const empOpts=emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
   const todStr=dateStr(new Date());
+  assignAllDay=true;_assignPriOrder=[];
   return`<div style="display:grid;gap:11px">
-    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Employé</label><select id="assign-emp" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px">${empOpts}</select></div>
+    <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Employé</label><select id="assign-emp" onchange="onAssignEmpChange()" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px">${empOpts}</select></div>
     <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Titre de la tâche</label><input id="assign-title" type="text" placeholder="Ex: Inspection succursale..." style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date début</label><input id="assign-sd" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
-      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date fin</label><input id="assign-ed" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+    <div style="display:flex;background:var(--card-bg2);border-radius:9px;border:1px solid var(--border2);overflow:hidden">
+      <button id="assign-allday-btn" onclick="setAssignAllDay(true)" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:rgba(255,77,109,.18);color:#FF4D6D;border-right:1px solid var(--border2)">Journée entière</button>
+      <button id="assign-timed-btn" onclick="setAssignAllDay(false)" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--text5)">Heure précise</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date début</label><input id="assign-sd" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+      <div id="assign-ed-wrap" style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Date fin</label><input id="assign-ed" type="date" value="${todStr}" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
+    </div>
+    <div id="assign-hours-row" style="display:none;grid-template-columns:1fr 1fr;gap:10px">
       <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure début</label><input id="assign-sh" type="number" value="9" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
       <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Heure fin</label><input id="assign-eh" type="number" value="10" min="0" max="23" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"></div>
     </div>
     <div style="display:grid;gap:5px"><label style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.05em">Priorité</label><select id="assign-plevel" style="padding:9px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--input-bg,var(--card-bg2));color:var(--text);font-size:13px"><option>Élevé</option><option selected>Moyen</option><option>Faible</option></select></div>
-    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--card-bg2)"><input type="checkbox" id="assign-add-pri" style="width:16px;height:16px;cursor:pointer;accent-color:#4CAF50"><div><div style="font-size:13px;font-weight:600;color:var(--text)">Ajouter aux priorités</div><div style="font-size:11px;color:var(--text5);margin-top:2px">Classifie aussi dans les priorités de l'employé</div></div></label>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:9px;border:1px solid var(--border2);background:var(--card-bg2)"><input type="checkbox" id="assign-add-pri" onchange="onAssignPriCheck()" style="width:16px;height:16px;cursor:pointer;accent-color:#4CAF50"><div><div style="font-size:13px;font-weight:600;color:var(--text)">Ajouter aux priorités</div><div style="font-size:11px;color:var(--text5);margin-top:2px">Classifie aussi dans les priorités de l'employé</div></div></label>
+    <div id="assign-pri-section" style="display:none;border-radius:9px;border:1px solid rgba(76,175,80,.35);background:rgba(76,175,80,.05);padding:12px">
+      <div style="font-size:11px;font-weight:700;color:#4CAF50;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Ordre des priorités</div>
+      <div style="font-size:12px;color:var(--text5);margin-bottom:10px">Glisser ⠿ pour placer la nouvelle tâche dans la liste</div>
+      <div id="assign-pri-order-list"></div>
+    </div>
     <button onclick="sendTaskToEmp()" style="padding:11px;border-radius:10px;background:#4CAF50;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.02em">✦ Envoyer la tâche</button>
   </div>`;
+}
+function setAssignAllDay(allDay){
+  assignAllDay=allDay;
+  const aB=document.getElementById('assign-allday-btn'),tB=document.getElementById('assign-timed-btn');
+  const hr=document.getElementById('assign-hours-row'),edW=document.getElementById('assign-ed-wrap');
+  if(aB){aB.style.background=allDay?'rgba(255,77,109,.18)':'transparent';aB.style.color=allDay?'#FF4D6D':'var(--text5)';}
+  if(tB){tB.style.background=allDay?'transparent':'rgba(76,201,240,.15)';tB.style.color=allDay?'var(--text5)':'#4CC9F0';}
+  if(hr)hr.style.display=allDay?'none':'grid';
+  if(edW){edW.style.display=allDay?'grid':'none';if(!allDay)document.getElementById('assign-ed').value=document.getElementById('assign-sd').value;}
+}
+function onAssignEmpChange(){if(document.getElementById('assign-add-pri')?.checked)refreshAssignPriList();}
+function onAssignPriCheck(){
+  const checked=document.getElementById('assign-add-pri').checked;
+  const sec=document.getElementById('assign-pri-section');
+  if(!sec)return;
+  if(checked){sec.style.display='block';_assignPriOrder=[];refreshAssignPriList();}
+  else{sec.style.display='none';}
+}
+function refreshAssignPriList(){
+  const empId=parseInt(document.getElementById('assign-emp').value);
+  const title=(document.getElementById('assign-title').value||'').trim()||'Nouvelle tâche';
+  const pris=(edata[empId]?.pris||[]).map(p=>({id:String(p.id),title:p.title,isNew:false}));
+  if(_assignPriOrder.length===0){
+    _assignPriOrder=[...pris,{id:'NEW',title,isNew:true}];
+  } else {
+    const ni=_assignPriOrder.findIndex(x=>x.isNew);
+    if(ni>=0)_assignPriOrder[ni].title=title;
+    pris.forEach(p=>{if(!_assignPriOrder.some(x=>x.id===p.id))_assignPriOrder.push(p);});
+    _assignPriOrder=_assignPriOrder.filter(x=>x.isNew||pris.some(p=>p.id===x.id));
+  }
+  renderAssignPriListUI();
+}
+function renderAssignPriListUI(){
+  const list=document.getElementById('assign-pri-order-list');if(!list)return;
+  list.innerHTML=_assignPriOrder.map((item,i)=>`<div data-priid="${item.id}" draggable="true" ondragstart="assignPriDragStart(event,'${item.id}')" ondragover="assignPriDragOver(event)" ondragleave="assignPriDragLeave(event)" ondrop="assignPriDrop(event,'${item.id}')" ondragend="assignPriDragEnd(event)" style="display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;border:1px solid ${item.isNew?'rgba(76,175,80,.5)':'var(--border2)'};background:${item.isNew?'rgba(76,175,80,.1)':'var(--card-bg2)'};cursor:grab;margin-bottom:5px;transition:outline .1s"><span style="color:var(--text5);font-size:13px;flex-shrink:0">⠿</span><span style="font-size:11px;font-weight:700;color:var(--text5);min-width:18px;flex-shrink:0">${i+1}.</span><span style="font-size:13px;flex:1;color:${item.isNew?'#4CAF50':'var(--text)'};font-weight:${item.isNew?'600':'400'}">${item.title}</span>${item.isNew?'<span style="font-size:10px;background:rgba(76,175,80,.2);color:#4CAF50;border-radius:4px;padding:1px 6px;flex-shrink:0">NOUVEAU</span>':''}</div>`).join('');
+}
+function assignPriDragStart(e,id){_assignPriDragKey=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>{if(e.target)e.target.style.opacity='.4';},0);}
+function assignPriDragEnd(e){if(e.target){e.target.style.opacity='';e.target.style.outline='';}}
+function assignPriDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.style.outline='2px solid rgba(76,175,80,.5)';e.currentTarget.style.outlineOffset='-2px';}
+function assignPriDragLeave(e){e.currentTarget.style.outline='';}
+function assignPriDrop(e,targetId){
+  e.preventDefault();e.currentTarget.style.outline='';
+  if(!_assignPriDragKey||_assignPriDragKey===targetId)return;
+  const fi=_assignPriOrder.findIndex(x=>x.id===_assignPriDragKey),ti=_assignPriOrder.findIndex(x=>x.id===targetId);
+  if(fi<0||ti<0)return;
+  const[item]=_assignPriOrder.splice(fi,1);_assignPriOrder.splice(ti,0,item);
+  _assignPriDragKey=null;renderAssignPriListUI();
 }
 function sendTaskToEmp(){
   const empId=parseInt(document.getElementById('assign-emp').value);
@@ -885,16 +945,32 @@ function sendTaskToEmp(){
   if(!title){showToast('Titre requis','err');return;}
   const sd=document.getElementById('assign-sd').value;
   if(!sd){showToast('Date début requise','err');return;}
-  const ed=document.getElementById('assign-ed').value||sd;
-  const sh=parseInt(document.getElementById('assign-sh').value)||9;
-  const eh=parseInt(document.getElementById('assign-eh').value)||10;
+  const isAllDay=assignAllDay;
+  const ed=isAllDay?(document.getElementById('assign-ed')?.value||sd):sd;
+  const sh=isAllDay?0:parseInt(document.getElementById('assign-sh').value)||9;
+  const eh=isAllDay?0:parseInt(document.getElementById('assign-eh').value)||10;
   const color='#FF4D6D';
   const pLevel=document.getElementById('assign-plevel').value||'Moyen';
   const addPri=document.getElementById('assign-add-pri').checked;
   if(!edata[empId])edata[empId]={evts:[],pris:[]};
   const evId=Date.now();
-  edata[empId].evts.push({id:evId,title,sd,ed,sh,eh,color,allDay:false,pLevel,repeat:'Aucune',branchIds:[],assignedByAdmin:true});
-  if(addPri){const pris=edata[empId].pris||[];pris.push({id:evId+1,rank:pris.length+1,title,desc:'Assigné par admin',color,pLevel,status:'À faire',parts:[],due:ed,linkedEvtId:evId});edata[empId].pris=pris;}
+  edata[empId].evts.push({id:evId,title,sd,ed,sh,eh,color,allDay:isAllDay,pLevel,repeat:'Aucune',branchIds:[],assignedByAdmin:true});
+  if(addPri){
+    const newEntry={id:evId+1,title,desc:'Assigné par admin',color,pLevel,status:'À faire',parts:[],due:ed,linkedEvtId:evId};
+    if(_assignPriOrder.length>0){
+      // Apply the admin-defined order
+      const ordered=_assignPriOrder.map((x,i)=>{
+        if(x.isNew)return{...newEntry,rank:i+1};
+        const existing=(edata[empId].pris||[]).find(p=>String(p.id)===x.id);
+        return existing?{...existing,rank:i+1}:null;
+      }).filter(Boolean);
+      edata[empId].pris=ordered;
+    } else {
+      const pris=edata[empId].pris||[];
+      pris.push({...newEntry,rank:pris.length+1});
+      edata[empId].pris=pris;
+    }
+  }
   const empName=emps.find(e=>e.id===empId)?.name||'Employé';
   showToast('Tâche envoyée à '+empName+' ✓');
   if(currentEmpId===empId){renderCalendar();renderCitySch();updateTaskBadge();}
