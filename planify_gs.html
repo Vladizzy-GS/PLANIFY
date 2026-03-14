@@ -265,65 +265,6 @@ select option{background:var(--inp-bg,#181828);color:var(--text,#e8e8f0);}
     <div id="alert-list" style="display:grid;gap:10px;max-width:720px"></div>
   </div>
 
-  <!-- ALERT MODAL -->
-  <div id="alert-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('alert-modal')">
-    <div class="modal-box" style="width:100%;max-width:500px;max-height:92vh;overflow-y:auto">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-        <h2 id="al-modal-title" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--text)">Nouvelle alerte</h2>
-        <button onclick="closeModal('alert-modal')" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
-      </div>
-      <!-- Type toggle -->
-      <div style="display:flex;background:var(--card-bg2);border-radius:9px;border:1px solid var(--border2);overflow:hidden;margin-bottom:16px">
-        <button id="al-type-warn-btn" onclick="setAlertType('warn')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:rgba(247,127,0,.18);color:#F77F00;border-right:1px solid var(--border2)">⚠ Avertissement</button>
-        <button id="al-type-info-btn" onclick="setAlertType('info')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--text3)">ℹ Information</button>
-      </div>
-      <div style="display:grid;gap:13px">
-        <div style="display:grid;gap:5px"><label class="lbl">Titre *</label><input id="al-title" type="text" class="inp" placeholder="Ex: Réunion hebdo, Rappel deadline..."/></div>
-        <div style="display:grid;gap:5px"><label class="lbl">Message (optionnel)</label><textarea id="al-msg" class="inp" rows="2" style="resize:vertical" placeholder="Détails supplémentaires..."></textarea></div>
-        <div style="display:grid;gap:5px">
-          <label class="lbl">Fréquence</label>
-          <select id="al-freq" class="inp">
-            <option value="once">Une fois</option>
-            <option value="daily">Chaque jour</option>
-            <option value="weekdays">Jours ouvrables (lun–ven)</option>
-            <option value="weekly">Chaque semaine</option>
-            <option value="biweekly">Toutes les 2 semaines</option>
-            <option value="monthly">Chaque mois</option>
-            <option value="yearly">Chaque année</option>
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div style="display:grid;gap:5px"><label class="lbl">Date</label><input id="al-date" type="date" class="inp"/></div>
-          <div style="display:grid;gap:5px"><label class="lbl">Heure</label><input id="al-timeofday" type="time" class="inp"/></div>
-        </div>
-        <div style="display:grid;gap:5px">
-          <label class="lbl">Lier à (optionnel)</label>
-          <select id="al-link-type" class="inp" oninput="updateAlertLinkOptions()">
-            <option value="">— Aucun —</option>
-            <option value="event">Événement existant</option>
-            <option value="priority">Priorité existante</option>
-          </select>
-        </div>
-        <div id="al-link-item-wrap" style="display:none"><select id="al-link-id" class="inp"><option value="">Choisir...</option></select></div>
-        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
-          <input type="checkbox" id="al-schedule" style="width:16px;height:16px;accent-color:#4CC9F0;flex-shrink:0"/>
-          <div><div style="font-size:14px;font-weight:600;color:var(--text)">Ajouter à l'horaire</div><div style="font-size:12px;color:var(--text5)">Crée un événement lié dans votre calendrier</div></div>
-        </label>
-        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
-          <input type="checkbox" id="al-sms" onchange="toggleAlertSms()" style="width:16px;height:16px;accent-color:#4CAF50;flex-shrink:0"/>
-          <div><div style="font-size:14px;font-weight:600;color:var(--text)">Recevoir par texto</div><div style="font-size:12px;color:var(--text5)">La notification sera aussi visible sur la plateforme</div></div>
-        </label>
-        <div id="al-sms-phone-row" style="display:none"><input id="al-sms-phone" type="tel" class="inp" placeholder="Ex: 418-555-0123"/></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:20px">
-        <button id="al-del-btn" onclick="deleteCurrentAlert()" style="display:none;padding:10px 18px;border-radius:10px;border:1px solid rgba(255,77,109,.35);background:transparent;color:#FF4D6D;font-size:14px;font-weight:600;cursor:pointer">Supprimer</button>
-        <button onclick="saveAlert()" id="al-save-btn" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#7B2FBE,#FF4D6D);color:#fff;font-size:14px;font-weight:700;cursor:pointer">Créer l'alerte</button>
-      </div>
-      <input type="hidden" id="al-id"/>
-      <input type="hidden" id="al-type-val" value="info"/>
-    </div>
-  </div>
-
   <!-- TÂCHES À FAIRE -->
   <div id="page-tasks" class="page"></div>
 
@@ -589,6 +530,62 @@ select option{background:var(--inp-bg,#181828);color:var(--text,#e8e8f0);}
 </div>
 
 <!-- MODALS -->
+<div id="alert-modal" class="ovl" onclick="closeModal('alert-modal')">
+  <div class="bx" onclick="event.stopPropagation()" style="width:500px;max-height:92vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div id="al-modal-title" style="font-size:17px;font-family:'Syne',sans-serif;font-weight:700;color:var(--text)">Nouvelle alerte</div>
+      <button onclick="closeModal('alert-modal')" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--hover-bg);color:var(--text3);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+    </div>
+    <div style="display:flex;background:var(--card-bg2);border-radius:9px;border:1px solid var(--border2);overflow:hidden;margin-bottom:16px">
+      <button id="al-type-warn-btn" onclick="setAlertType('warn')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:rgba(247,127,0,.18);color:#F77F00;border-right:1px solid var(--border2)">⚠ Avertissement</button>
+      <button id="al-type-info-btn" onclick="setAlertType('info')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--text3)">ℹ Information</button>
+    </div>
+    <div style="display:grid;gap:13px">
+      <div style="display:grid;gap:5px"><label class="lbl">Titre *</label><input id="al-title" type="text" class="inp" placeholder="Ex: Réunion hebdo, Rappel deadline..."/></div>
+      <div style="display:grid;gap:5px"><label class="lbl">Message (optionnel)</label><textarea id="al-msg" class="inp" rows="2" style="resize:vertical" placeholder="Détails supplémentaires..."></textarea></div>
+      <div style="display:grid;gap:5px">
+        <label class="lbl">Fréquence</label>
+        <select id="al-freq" class="inp">
+          <option value="once">Une fois</option>
+          <option value="daily">Chaque jour</option>
+          <option value="weekdays">Jours ouvrables (lun–ven)</option>
+          <option value="weekly">Chaque semaine</option>
+          <option value="biweekly">Toutes les 2 semaines</option>
+          <option value="monthly">Chaque mois</option>
+          <option value="yearly">Chaque année</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="display:grid;gap:5px"><label class="lbl">Date</label><input id="al-date" type="date" class="inp"/></div>
+        <div style="display:grid;gap:5px"><label class="lbl">Heure</label><input id="al-timeofday" type="time" class="inp"/></div>
+      </div>
+      <div style="display:grid;gap:5px">
+        <label class="lbl">Lier à (optionnel)</label>
+        <select id="al-link-type" class="inp" oninput="updateAlertLinkOptions()">
+          <option value="">— Aucun —</option>
+          <option value="event">Événement existant</option>
+          <option value="priority">Priorité existante</option>
+        </select>
+      </div>
+      <div id="al-link-item-wrap" style="display:none"><select id="al-link-id" class="inp"><option value="">Choisir...</option></select></div>
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
+        <input type="checkbox" id="al-schedule" style="width:16px;height:16px;accent-color:#4CC9F0;flex-shrink:0"/>
+        <div><div style="font-size:14px;font-weight:600;color:var(--text)">Ajouter à l'horaire</div><div style="font-size:12px;color:var(--text5)">Crée un événement lié dans votre calendrier</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg2)">
+        <input type="checkbox" id="al-sms" onchange="toggleAlertSms()" style="width:16px;height:16px;accent-color:#4CAF50;flex-shrink:0"/>
+        <div><div style="font-size:14px;font-weight:600;color:var(--text)">Recevoir par texto</div><div style="font-size:12px;color:var(--text5)">La notification sera aussi visible sur la plateforme</div></div>
+      </label>
+      <div id="al-sms-phone-row" style="display:none"><input id="al-sms-phone" type="tel" class="inp" placeholder="Ex: 418-555-0123"/></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button id="al-del-btn" onclick="deleteCurrentAlert()" style="display:none;padding:10px 18px;border-radius:10px;border:1px solid rgba(255,77,109,.35);background:transparent;color:#FF4D6D;font-size:14px;font-weight:600;cursor:pointer">Supprimer</button>
+      <button onclick="saveAlert()" id="al-save-btn" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#7B2FBE,#FF4D6D);color:#fff;font-size:14px;font-weight:700;cursor:pointer">Créer l'alerte</button>
+    </div>
+    <input type="hidden" id="al-id"/>
+    <input type="hidden" id="al-type-val" value="info"/>
+  </div>
+</div>
 <div id="ev-modal" class="ovl" onclick="closeModal('ev-modal')">
   <div class="bx" onclick="event.stopPropagation()">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
