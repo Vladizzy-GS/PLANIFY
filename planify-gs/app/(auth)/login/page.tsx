@@ -42,7 +42,7 @@ export default function LoginPage() {
     setLoginErr('')
     if (!loginEmail || !loginPass) { setLoginErr('Veuillez remplir tous les champs.'); return }
     if (!loginEmail.includes('@')) { setLoginErr('Courriel invalide.'); return }
-    if (loginPass.length < 4) { setLoginErr('Mot de passe trop court.'); return }
+    if (loginPass.length < 8) { setLoginErr('Mot de passe trop court (min. 8 caractères).'); return }
 
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({

@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, requireAdmin } from '@/lib/supabase/server'
 
+const DB_ERROR = 'Une erreur est survenue. Veuillez réessayer.'
+
 export async function GET() {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -9,7 +11,7 @@ export async function GET() {
   const supabase = await createClient()
   const { data, error } = await (supabase as any).from('branches').select('*').order('name')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
   return NextResponse.json(data)
 }
 
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data, error } = await (supabase as any).from('branches').insert(body).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
 }
 
@@ -36,7 +38,7 @@ export async function PATCH(request: NextRequest) {
   const supabase = await createClient()
   const { data, error } = await (supabase as any).from('branches').update(updates).eq('id', id).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
   return NextResponse.json(data)
 }
 
@@ -50,6 +52,6 @@ export async function DELETE(request: NextRequest) {
   const supabase = await createClient()
   const { error } = await (supabase as any).from('branches').delete().eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
   return NextResponse.json({ success: true })
 }
