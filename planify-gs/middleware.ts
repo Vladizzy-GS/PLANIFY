@@ -1,4 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Simple in-process rate limiter (resets on cold start — sufficient for edge protection)
@@ -25,7 +24,7 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_MAX
 }
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Rate-limit API routes
@@ -39,40 +38,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Skip Supabase session refresh if env vars are not configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next()
-  }
-
-  try {
-    // Supabase requires session refresh on every request for SSR auth to work
-    let supabaseResponse = NextResponse.next({ request })
-
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    })
-
-    // Refresh the session — do not remove this line
-    await supabase.auth.getUser()
-
-    return supabaseResponse
-  } catch (err) {
-    console.error('[middleware] Supabase session refresh failed:', err)
-    return NextResponse.next()
-  }
+  return NextResponse.next()
 }
 
 export const config = {
