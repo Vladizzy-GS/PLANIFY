@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd planify-gs && npm install && npm run build",
+  "outputDirectory": "planify-gs/.next",
+  "installCommand": "cd planify-gs && npm install",
+  "framework": "nextjs",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/planify-gs/$1" }
+  ]
+}
