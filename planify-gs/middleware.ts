@@ -39,13 +39,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Supabase requires session refresh on every request for SSR auth to work
-  let supabaseResponse = NextResponse.next({ request })
+  // Skip Supabase session refresh if env vars are not configured
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return NextResponse.next()
+  }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  try {
+    // Supabase requires session refresh on every request for SSR auth to work
+    let supabaseResponse = NextResponse.next({ request })
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -58,13 +63,16 @@ export async function middleware(request: NextRequest) {
           )
         },
       },
-    }
-  )
+    })
 
-  // Refresh the session — do not remove this line
-  await supabase.auth.getUser()
+    // Refresh the session — do not remove this line
+    await supabase.auth.getUser()
 
-  return supabaseResponse
+    return supabaseResponse
+  } catch (err) {
+    console.error('[middleware] Supabase session refresh failed:', err)
+    return NextResponse.next()
+  }
 }
 
 export const config = {
