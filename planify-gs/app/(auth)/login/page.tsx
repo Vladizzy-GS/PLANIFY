@@ -115,7 +115,7 @@ export default function LoginPage() {
             <div style={{ fontSize: '11px', color: '#FF4D6D', letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '8px', animation: 'splFadeUp .5s .15s ease both' }}>
               Gestion équipe
             </div>
-            <div style={{ fontSize: '36px', fontFamily: "'Syne', sans-serif", fontWeight: 800, color: '#e8e8f0', lineHeight: 1, letterSpacing: '-.01em' }}>
+            <div style={{ fontSize: '36px', fontFamily: 'var(--font-syne), sans-serif', fontWeight: 800, color: '#e8e8f0', lineHeight: 1, letterSpacing: '-.01em' }}>
               Planify <span style={{ color: '#FF4D6D' }}>·</span>{' '}
               <span style={{ color: 'rgba(255,255,255,.28)', fontWeight: 600, fontSize: '30px' }}>GS</span>
             </div>
