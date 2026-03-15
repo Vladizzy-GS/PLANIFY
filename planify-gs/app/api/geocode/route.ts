@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
 
   const q = request.nextUrl.searchParams.get('q')
   if (!q) return NextResponse.json({ error: 'Missing query parameter q' }, { status: 400 })
+  if (q.length > 200) return NextResponse.json({ error: 'Query too long' }, { status: 400 })
 
   const url = new URL('https://nominatim.openstreetmap.org/search')
   url.searchParams.set('q', q)
