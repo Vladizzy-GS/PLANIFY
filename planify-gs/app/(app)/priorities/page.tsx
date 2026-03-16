@@ -1,12 +1,22 @@
-export default function Page() {
-  return (
-    <div style={{ padding: '32px', color: '#e8e8f0' }}>
-      <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '24px', fontWeight: 800 }}>
-        Page en construction
-      </h1>
-      <p style={{ marginTop: '12px', color: 'rgba(255,255,255,.5)', fontSize: '14px' }}>
-        Cette page sera implémentée dans la prochaine phase.
-      </p>
-    </div>
-  )
+import { createClient } from '@/lib/supabase/server'
+import PrioritiesClient from './PrioritiesClient'
+import type { Priority, PriorityPart } from '@/types/database'
+
+export const dynamic = 'force-dynamic'
+
+export default async function PrioritiesPage() {
+  const supabase = await createClient()
+
+  const [prioritiesRes, partsRes] = await Promise.all([
+    supabase.from('priorities').select('*').order('rank').order('created_at'),
+    supabase.from('priority_parts').select('*').order('position'),
+  ])
+
+  const parts = (partsRes.data ?? []) as PriorityPart[]
+  const priorities = ((prioritiesRes.data ?? []) as Priority[]).map(p => ({
+    ...p,
+    parts: parts.filter(pt => pt.priority_id === p.id),
+  }))
+
+  return <PrioritiesClient initialPriorities={priorities} />
 }
