@@ -69,13 +69,16 @@ export default function LoginPage() {
     if (regPass !== regPass2) { setRegErr('Les mots de passe ne correspondent pas.'); return }
 
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: regEmail,
       password: regPass,
       options: { data: { full_name: regName } },
     })
     if (error) {
       setRegErr(error.message)
+    } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+      // Supabase returns empty identities when email already exists (email enumeration protection)
+      setRegErr('Un compte existe déjà avec ce courriel. Veuillez vous connecter ou réinitialiser votre mot de passe.')
     } else {
       setRegErr('')
       alert('Compte créé. Vérifiez votre courriel pour confirmer.')
