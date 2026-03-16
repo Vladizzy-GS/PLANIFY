@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, requireAdmin } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 const DB_ERROR = 'Une erreur est survenue. Veuillez réessayer.'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 // Proxy for Gemini API — keeps the key server-side
 // Client sends: { messages, systemPrompt, webSearch, apiKey? }
 // We use GEMINI_API_KEY env var if set, otherwise fall back to client-provided key
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

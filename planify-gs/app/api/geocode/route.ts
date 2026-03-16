@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 // Nominatim geocoding proxy
 // Adds required User-Agent, handles rate limiting at the server level
 // Client sends: GET /api/geocode?q=<address>
 
 export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
