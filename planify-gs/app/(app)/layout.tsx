@@ -4,17 +4,27 @@ import { createClient } from '@/lib/supabase/server'
 export const dynamic = 'force-dynamic'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  let profile: { role: string; employee_id: string | null; display_name: string | null } | null = null
 
-  if (!user) redirect('/login')
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  // Fetch profile for role data
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, employee_id, display_name')
-    .eq('id', user.id)
-    .single() as { data: { role: string; employee_id: string | null; display_name: string | null } | null }
+    if (!user) redirect('/login')
+
+    // Fetch profile for role data
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, employee_id, display_name')
+      .eq('id', user.id)
+      .single() as { data: { role: string; employee_id: string | null; display_name: string | null } | null }
+    profile = data
+  } catch (err) {
+    // If it's a redirect (Next.js redirect throws), re-throw it
+    if (err && typeof err === 'object' && 'digest' in err) throw err
+    // Otherwise Supabase failed — redirect to login
+    redirect('/login')
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a12' }}>
