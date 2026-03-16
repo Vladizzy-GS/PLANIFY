@@ -28,6 +28,21 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Replace __dirname/__filename with safe values in Edge Runtime bundles.
+  // Some Next.js internals (e.g. @next/env ncc bundle) reference __dirname at
+  // module level; those globals do not exist in the Vercel Edge Runtime, which
+  // causes MIDDLEWARE_INVOCATION_FAILED: ReferenceError: __dirname is not defined.
+  webpack(config, { nextRuntime, webpack }) {
+    if (nextRuntime === 'edge') {
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          __dirname: JSON.stringify('/'),
+          __filename: JSON.stringify(''),
+        })
+      )
+    }
+    return config
+  },
   async headers() {
     return [
       {
