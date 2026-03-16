@@ -454,12 +454,14 @@ CREATE TRIGGER user_preferences_updated_at BEFORE UPDATE ON user_preferences
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO profiles (id, display_name, role)
+  INSERT INTO public.profiles (id, display_name, role)
   VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', 'employee')
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
