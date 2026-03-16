@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, requireAdmin } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 // Danger zone — only callable by admin
 // POST { target: 'events' | 'all' }
@@ -9,6 +10,9 @@ const VALID_TARGETS = ['events', 'all'] as const
 type ResetTarget = typeof VALID_TARGETS[number]
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
