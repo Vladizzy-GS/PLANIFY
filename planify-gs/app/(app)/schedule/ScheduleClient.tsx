@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCalendarStore } from '@/stores/useCalendarStore'
+import { useSessionStore } from '@/stores/useSessionStore'
 import {
   todayStr, addDays, getMondayOf, shortDay, shortMonth,
   fullMonth, localDate, dateStr, eventVisibleOn, formatHour,
@@ -678,6 +679,8 @@ export default function ScheduleClient({
     setCalMode, setWkStart, setDayView, setMonView, toggleWeekends, setSchedFilter, goToToday,
   } = useCalendarStore()
 
+  const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
+
   const [events, setEvents] = useState<Event[]>(initialEvents)
   const [modalOpen, setModalOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<Event | null>(null)
@@ -685,6 +688,12 @@ export default function ScheduleClient({
   const [pickerMonth, setPickerMonth] = useState(todayStr().substring(0, 8) + '01')
 
   const today = todayStr()
+
+  // Filter events by selected employee (admin sidebar) or own employee id
+  const viewEmpId = isAdmin ? (selectedEmployeeId ?? null) : myEmployeeId
+  const filteredEvents = viewEmpId
+    ? events.filter(ev => ev.employee_id === viewEmpId)
+    : events
 
   // Label for current view
   const calLabel = (() => {
@@ -695,8 +704,7 @@ export default function ScheduleClient({
     if (calMode === 'week') {
       const wkEnd = addDays(wkStart, showWeekends ? 6 : 4)
       const d = localDate(wkStart)
-      const wn = isoWeek(d)
-      return `Sem. ${wn} · ${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
+      return `${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
     }
     // month
     return `${fullMonth(monView)} ${localDate(monView).getFullYear()}`
@@ -763,7 +771,7 @@ export default function ScheduleClient({
           <select
             value={schedFilter}
             onChange={e => setSchedFilter(e.target.value as 'all' | 'undone' | 'done' | 'high' | 'medium')}
-            style={{ padding: '8px 11px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+            style={{ padding: '8px 11px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: '#1a1a2e', color: '#e8e8f0', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
           >
             <option value="all">Tous</option>
             <option value="undone">Non-complétés</option>
@@ -869,18 +877,18 @@ export default function ScheduleClient({
         {calMode === 'week' && (
           <WeekView
             wkStart={wkStart} showWeekends={showWeekends} filter={schedFilter}
-            events={events} onEventClick={openModal} onDateClick={handleDateClick}
+            events={filteredEvents} onEventClick={openModal} onDateClick={handleDateClick}
           />
         )}
         {calMode === 'day' && (
           <DayView
-            day={dayView} events={events} filter={schedFilter} onEventClick={openModal}
+            day={dayView} events={filteredEvents} filter={schedFilter} onEventClick={openModal}
           />
         )}
         {calMode === 'month' && (
           <MonthView
             monView={monView} showWeekends={showWeekends} filter={schedFilter}
-            events={events} onEventClick={openModal} onDateClick={handleDateClick}
+            events={filteredEvents} onEventClick={openModal} onDateClick={handleDateClick}
           />
         )}
       </div>
@@ -889,7 +897,7 @@ export default function ScheduleClient({
       <EventModal
         open={modalOpen} onClose={() => setModalOpen(false)}
         event={editEvent} employees={employees} branches={branches}
-        myEmployeeId={myEmployeeId} isAdmin={isAdmin}
+        myEmployeeId={viewEmpId ?? myEmployeeId} isAdmin={isAdmin}
         onSaved={onSaved} onDeleted={onDeleted}
       />
     </div>
