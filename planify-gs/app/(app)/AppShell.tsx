@@ -70,7 +70,7 @@ const NAV = [
   },
 ]
 
-export default function AppShell({ role, employeeId, displayName, employees, alertCount, taskCount, adminCount, children }: Props) {
+export default function AppShell({ role, employeeId, employees, alertCount, taskCount, adminCount, children }: Props) {
   const setSession = useSessionStore(s => s.setSession)
   const setSelectedEmployee = useSessionStore(s => s.setSelectedEmployee)
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)

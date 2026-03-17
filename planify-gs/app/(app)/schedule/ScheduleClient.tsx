@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCalendarStore } from '@/stores/useCalendarStore'
-import { useSessionStore } from '@/stores/useSessionStore'
 import {
   todayStr, addDays, getMondayOf, shortDay, shortMonth,
   fullMonth, localDate, dateStr, eventVisibleOn, formatHour,
@@ -720,7 +719,7 @@ export default function ScheduleClient({
     setModalOpen(true)
   }
 
-  function handleDateClick(date: string) {
+  function handleDateClick(_date: string) {
     setEditEvent(null)
     setModalOpen(true)
   }
