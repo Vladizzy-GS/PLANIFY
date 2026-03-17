@@ -1,9 +1,18 @@
-export default function Page() {
-  return (
-    <div style={{ padding: '32px', color: '#e8e8f0' }}>
-      <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '24px', fontWeight: 800 }}>
-        Page admin en construction
-      </h1>
-    </div>
-  )
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import AdminSettingsClient from './AdminSettingsClient'
+
+export const dynamic = 'force-dynamic'
+
+export default async function AdminSettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') redirect('/schedule')
+
+  const { data: pinRow } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').single()
+
+  return <AdminSettingsClient currentPin={pinRow?.value ?? '1234'} />
 }

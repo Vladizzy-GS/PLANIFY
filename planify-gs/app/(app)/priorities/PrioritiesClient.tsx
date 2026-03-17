@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { todayStr, localDate } from '@/lib/utils/dates'
 import type { Priority, PriorityPart } from '@/types/database'
@@ -50,7 +50,7 @@ function PriorityModal({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
-  useState(() => {
+  useEffect(() => {
     if (!open) return
     if (priority) {
       setForm({
@@ -65,7 +65,7 @@ function PriorityModal({
       setParts([])
     }
     setErr('')
-  })
+  }, [open, priority])
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }))
