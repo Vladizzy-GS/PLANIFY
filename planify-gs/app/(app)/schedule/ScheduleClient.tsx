@@ -341,7 +341,7 @@ function EventModal({
   )
 }
 
-// ─── Week View ─────────────────────────────────────────────────────────────────
+// ─── Week View (time grid) ──────────────────────────────────────────────────────
 
 function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateClick }: {
   wkStart: string
@@ -351,10 +351,14 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
   onEventClick: (ev: Event) => void
   onDateClick: (date: string) => void
 }) {
+  const [startHour, setStartHour] = useState(8)
+  const [endHour, setEndHour] = useState(17)
   const today = todayStr()
   const days = Array.from({ length: showWeekends ? 7 : 5 }, (_, i) => addDays(wkStart, i))
+  const ROW_H = 56 // px per hour
+  const TIME_COL = 52 // px for time label column
 
-  function filterEvent(ev: Event) {
+  function matchesFilter(ev: Event) {
     if (filter === 'done') return ev.done
     if (filter === 'undone') return !ev.done
     if (filter === 'high') return ev.priority_level === 'Élevé'
@@ -362,58 +366,127 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
     return true
   }
 
+  const colStyle: React.CSSProperties = {
+    borderLeft: '1px solid rgba(255,255,255,.05)',
+    position: 'relative',
+    cursor: 'pointer',
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, 1fr)`, gap: '8px', flex: 1 }}>
-      {days.map(day => {
-        const isToday = day === today
-        const dayEvents = events.filter(ev => eventVisibleOn(ev, day) && filterEvent(ev))
-        const d = localDate(day)
-        return (
-          <div
-            key={day}
-            style={{
-              background: isToday ? 'rgba(255,77,109,.04)' : 'rgba(255,255,255,.01)',
-              border: isToday ? '1px solid rgba(255,77,109,.2)' : '1px solid rgba(255,255,255,.06)',
-              borderRadius: '12px', padding: '10px', cursor: 'pointer',
-              minHeight: '120px',
-            }}
-            onClick={() => onDateClick(day)}
-          >
-            {/* Day header */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'rgba(255,255,255,.01)', borderRadius: '14px', border: '1px solid rgba(255,255,255,.07)' }}>
+
+      {/* Début control */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+        <button onClick={() => setStartHour(h => Math.max(0, h - 1))} style={{ width: '22px', height: '22px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+        <button onClick={() => setStartHour(h => Math.min(endHour - 1, h + 1))} style={{ width: '22px', height: '22px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', fontWeight: 600 }}>Début: {formatHour(startHour)}</span>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: `${TIME_COL}px repeat(${days.length}, 1fr)`, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+        <div /> {/* time col header */}
+        {days.map(day => {
+          const isToday = day === today
+          const d = localDate(day)
+          return (
+            <div key={day} style={{ padding: '10px 8px 8px', textAlign: 'center', background: isToday ? 'rgba(76,201,240,.05)' : 'transparent', borderLeft: '1px solid rgba(255,255,255,.05)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: isToday ? '#4CC9F0' : 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '4px' }}>
                 {shortDay(day)}
               </div>
               <div style={{
-                fontSize: '20px', fontWeight: 800, color: isToday ? '#FF4D6D' : '#e8e8f0',
+                width: '32px', height: '32px', borderRadius: '50%', margin: '0 auto',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: isToday ? '#4CC9F0' : 'transparent',
+                fontSize: '15px', fontWeight: 800,
+                color: isToday ? '#0a0a12' : '#e8e8f0',
                 fontFamily: 'var(--font-syne)',
               }}>
                 {d.getDate()}
               </div>
             </div>
-            {/* Events */}
-            {dayEvents.map(ev => (
-              <div
-                key={ev.id}
-                onClick={e => { e.stopPropagation(); onEventClick(ev) }}
-                style={{
-                  borderLeft: `3px solid ${ev.color}`,
-                  background: `${ev.color}18`,
-                  borderRadius: '5px', padding: '4px 7px',
-                  fontSize: '12px', fontWeight: 500,
-                  color: '#e8e8f0', marginBottom: '4px',
-                  overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                  cursor: 'pointer', opacity: ev.done ? .5 : 1,
-                  textDecoration: ev.done ? 'line-through' : 'none',
-                }}
-              >
-                {!ev.all_day && <span style={{ color: 'rgba(255,255,255,.45)', marginRight: '4px' }}>{formatHour(ev.start_hour)}</span>}
-                {ev.title}
+          )
+        })}
+      </div>
+
+      {/* All-day row (JRNÉE) */}
+      <div style={{ display: 'grid', gridTemplateColumns: `${TIME_COL}px repeat(${days.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,.07)', flexShrink: 0, minHeight: '32px' }}>
+        <div style={{ padding: '6px 4px 6px 8px', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.25)', letterSpacing: '.06em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>JRNÉE</div>
+        {days.map(day => {
+          const allDayEvs = events.filter(ev => ev.all_day && eventVisibleOn(ev, day) && matchesFilter(ev))
+          return (
+            <div key={day} onClick={() => onDateClick(day)} style={{ ...colStyle, padding: '4px 4px' }}>
+              {allDayEvs.map(ev => (
+                <div key={ev.id} onClick={e => { e.stopPropagation(); onEventClick(ev) }}
+                  style={{ borderLeft: `3px solid ${ev.color}`, background: `${ev.color}22`, borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#e8e8f0', marginBottom: '2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', opacity: ev.done ? .5 : 1 }}>
+                  {ev.title}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Time grid */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `${TIME_COL}px repeat(${days.length}, 1fr)` }}>
+
+          {/* Time labels column */}
+          <div>
+            {Array.from({ length: endHour - startHour }, (_, i) => (
+              <div key={i} style={{ height: ROW_H, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: '8px', paddingTop: '4px' }}>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,.25)', fontWeight: 600 }}>{formatHour(startHour + i)}</span>
               </div>
             ))}
           </div>
-        )
-      })}
+
+          {/* Day columns */}
+          {days.map(day => {
+            const isToday = day === today
+            const timedEvs = events.filter(ev => !ev.all_day && eventVisibleOn(ev, day) && matchesFilter(ev))
+            const totalRows = endHour - startHour
+
+            return (
+              <div key={day} onClick={() => onDateClick(day)} style={{ ...colStyle, background: isToday ? 'rgba(76,201,240,.02)' : 'transparent', height: `${totalRows * ROW_H}px` }}>
+                {/* Hour dividers */}
+                {Array.from({ length: totalRows }, (_, i) => (
+                  <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: `${i * ROW_H}px`, height: `${ROW_H}px`, borderTop: '1px solid rgba(255,255,255,.04)' }} />
+                ))}
+                {/* Timed events */}
+                {timedEvs.map(ev => {
+                  const evStart = Math.max(ev.start_hour, startHour)
+                  const evEnd = Math.min(ev.end_hour > ev.start_hour ? ev.end_hour : ev.start_hour + 1, endHour)
+                  if (evStart >= endHour) return null
+                  const top = (evStart - startHour) * ROW_H
+                  const height = Math.max((evEnd - evStart) * ROW_H - 2, 20)
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={e => { e.stopPropagation(); onEventClick(ev) }}
+                      style={{
+                        position: 'absolute', left: '3px', right: '3px',
+                        top: `${top + 2}px`, height: `${height}px`,
+                        background: `${ev.color}28`, borderLeft: `3px solid ${ev.color}`,
+                        borderRadius: '6px', padding: '3px 6px', overflow: 'hidden',
+                        cursor: 'pointer', zIndex: 1, opacity: ev.done ? .5 : 1,
+                      }}
+                    >
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: ev.color }}>{formatHour(ev.start_hour)}</div>
+                      <div style={{ fontSize: '12px', color: '#e8e8f0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textDecoration: ev.done ? 'line-through' : 'none' }}>{ev.title}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Fin control */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderTop: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+        <button onClick={() => setEndHour(h => Math.max(startHour + 1, h - 1))} style={{ width: '22px', height: '22px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+        <button onClick={() => setEndHour(h => Math.min(23, h + 1))} style={{ width: '22px', height: '22px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', fontWeight: 600 }}>Fin: {formatHour(endHour)}</span>
+      </div>
     </div>
   )
 }
