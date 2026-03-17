@@ -866,7 +866,7 @@ export default function ScheduleClient({
       </div>
 
       {/* Calendar */}
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <div style={{ flex: 1, overflow: calMode === 'week' ? 'hidden' : 'auto', minHeight: 0 }}>
         {calMode === 'week' && (
           <WeekView
             wkStart={wkStart} showWeekends={showWeekends} filter={schedFilter}
