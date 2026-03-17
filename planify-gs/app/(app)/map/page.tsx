@@ -1,12 +1,26 @@
-export default function Page() {
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import MapClient from './MapClient'
+
+export const dynamic = 'force-dynamic'
+
+export default async function MapPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+
+  const [suppliersRes, branchesRes] = await Promise.all([
+    supabase.from('suppliers').select('*').order('name'),
+    supabase.from('branches').select('*').order('name'),
+  ])
+
   return (
-    <div style={{ padding: '32px', color: '#e8e8f0' }}>
-      <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '24px', fontWeight: 800 }}>
-        Page en construction
-      </h1>
-      <p style={{ marginTop: '12px', color: 'rgba(255,255,255,.5)', fontSize: '14px' }}>
-        Cette page sera implémentée dans la prochaine phase.
-      </p>
-    </div>
+    <MapClient
+      initialSuppliers={(suppliersRes.data ?? []) as Parameters<typeof MapClient>[0]['initialSuppliers']}
+      branches={(branchesRes.data ?? []) as Parameters<typeof MapClient>[0]['branches']}
+      isAdmin={profile?.role === 'admin'}
+    />
   )
 }
