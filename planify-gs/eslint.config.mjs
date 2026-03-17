@@ -12,7 +12,8 @@ export default [
   {
     rules: {
       "react/no-unescaped-entities": "off",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@next/next/no-page-custom-font": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     },
   },
 ];

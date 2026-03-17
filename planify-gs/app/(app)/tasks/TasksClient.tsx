@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { eventVisibleOn, todayStr, localDate, shortDay, addDays } from '@/lib/utils/dates'
+import { eventVisibleOn, todayStr, localDate } from '@/lib/utils/dates'
 import type { Event, Priority } from '@/types/database'
 
 const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -78,7 +78,6 @@ function EventCard({ ev, overdue, onToggle }: {
 
 function PriorityCard({ p }: { p: Priority }) {
   const sc = statusColor(p.status)
-  const pc = priorityColor(p.priority_level)
   return (
     <div style={{
       padding: '10px 12px', background: 'rgba(255,255,255,.03)',
