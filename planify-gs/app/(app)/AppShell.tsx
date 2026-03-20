@@ -484,11 +484,11 @@ export default function AppShell({
           </div>
         )}
 
-        {/* Employee list — admin only (per access control spec) */}
-        {isAdmin && (
-          <div style={st.section}>
-            <div style={st.sectionLabel}>
-              <span>Employés</span>
+        {/* Employee list — visible to all; interactive switching for admin only */}
+        <div style={st.section}>
+          <div style={st.sectionLabel}>
+            <span>Employés</span>
+            {isAdmin && (
               <Link
                 href="/admin/settings"
                 style={{
@@ -500,25 +500,27 @@ export default function AppShell({
                 }}
                 title="Gérer les employés"
               >+</Link>
-            </div>
-            {employees.map(emp => (
-              <div
-                key={emp.id}
-                style={empRowStyle(selectedEmployeeId === emp.id)}
-                onClick={() => handleSelectEmployee(emp.id)}
-              >
-                <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={st.empName}>{emp.name}</div>
-                  <div style={st.empStatus}>En ligne</div>
-                </div>
+            )}
+          </div>
+          {employees.map(emp => (
+            <div
+              key={emp.id}
+              style={empRowStyle(isAdmin && selectedEmployeeId === emp.id)}
+              onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined}
+            >
+              <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={st.empName}>{emp.name}</div>
+                <div style={st.empStatus}>En ligne</div>
+              </div>
+              {isAdmin && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* Week progress */}
         <div style={st.progressRow}>
