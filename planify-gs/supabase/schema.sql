@@ -271,6 +271,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
   phone        text,
   email        text,
   address      text,
+  notes        text DEFAULT '',
   lat          numeric(10,7),
   lng          numeric(10,7),
   created_at   timestamptz DEFAULT now(),

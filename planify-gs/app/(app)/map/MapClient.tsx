@@ -254,6 +254,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
       name: supForm.name, category: supForm.category,
       city: supForm.city || null, phone: supForm.phone || null,
       email: supForm.email || null, address: supForm.address || null,
+      notes: supForm.notes || null,
       lat: supForm.lat ?? null, lng: supForm.lng ?? null,
     }).select().single()
     if (!error && data) {
@@ -291,6 +292,21 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
     e.preventDefault()
     if (!editSup) return
     setEditSupSaving(true)
+
+    // Auto-geocode if address changed and no coords yet
+    let lat = editSupForm.lat
+    let lng = editSupForm.lng
+    if (editSupForm.address && !lat) {
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(editSupForm.address)}&limit=1`)
+        const geodata = await res.json()
+        if (Array.isArray(geodata) && geodata[0]) {
+          lat = parseFloat(geodata[0].lat)
+          lng = parseFloat(geodata[0].lon)
+        }
+      } catch { /* ignore */ }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any).from('suppliers').update({
       name: editSupForm.name,
@@ -300,12 +316,14 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
       email: editSupForm.email || null,
       address: editSupForm.address || null,
       notes: editSupForm.notes || null,
-      lat: editSupForm.lat ?? null,
-      lng: editSupForm.lng ?? null,
+      lat: lat ?? null,
+      lng: lng ?? null,
     }).eq('id', editSup.id).select().single()
+
     if (!error && data) {
-      setSuppliers(prev => prev.map(s => s.id === editSup.id ? data as Supplier : s))
-      if (editSupForm.lat && editSupForm.lng) fly([editSupForm.lat, editSupForm.lng])
+      const updated = data as Supplier
+      setSuppliers(prev => prev.map(s => s.id === editSup.id ? updated : s))
+      if (updated.lat && updated.lng) fly([Number(updated.lat), Number(updated.lng)])
     }
     setEditSupSaving(false)
     closeEditSup()
@@ -513,7 +531,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginLeft: '13px' }}>{s.category}</div>
                   {s.city && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginLeft: '13px' }}>{s.city}</div>}
                   {s.phone && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.25)', marginLeft: '13px' }}>{s.phone}</div>}
-                  {s.notes && <div style={{ fontSize: '10px', color: 'rgba(76,201,240,.5)', marginLeft: '13px', marginTop: '1px', fontStyle: 'italic' }}>{s.notes}</div>}
+                  {s.notes && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.25)', marginLeft: '13px', marginTop: '2px', padding: '2px 6px', background: 'rgba(255,255,255,.04)', borderRadius: '4px', display: 'inline-block' }}>{s.notes}</div>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                   {isAdmin && (
@@ -612,13 +630,16 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
             />
             <input placeholder="Ville" value={editSupForm.city} onChange={e => setEditSupForm(f => ({ ...f, city: e.target.value }))} style={inp} />
 
-            <textarea
-              placeholder="Notes / Contact (ex: Contacter Vlad avant d'appeler)"
-              value={editSupForm.notes}
-              onChange={e => setEditSupForm(f => ({ ...f, notes: e.target.value }))}
-              rows={3}
-              style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}
-            />
+            <div style={{ position: 'relative' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.35)', marginBottom: '5px' }}>Notes</div>
+              <textarea
+                placeholder="Ex: Contacter Vlad, demander le responsable technique…"
+                value={editSupForm.notes}
+                onChange={e => setEditSupForm(f => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', background: 'rgba(255,255,255,.03)', borderColor: 'rgba(255,255,255,.08)' }}
+              />
+            </div>
 
             {editSupForm.lat && editSupForm.lng && (
               <div style={{ fontSize: '11px', color: '#06D6A0', background: 'rgba(6,214,160,.06)', border: '1px solid rgba(6,214,160,.15)', borderRadius: '6px', padding: '6px 10px' }}>
