@@ -23,12 +23,16 @@ export const useSessionStore = create<SessionState>((set) => ({
   isAdmin: false,
 
   setSession: (role, employeeId) =>
-    set({
+    set((prev) => ({
       role,
       myEmployeeId: employeeId,
-      selectedEmployeeId: employeeId,
+      // Preserve existing selectedEmployeeId (e.g. admin switching employee)
+      // Only set it if it hasn't been set yet (first init)
+      selectedEmployeeId: prev.selectedEmployeeId !== null
+        ? prev.selectedEmployeeId
+        : employeeId,
       isAdmin: role === 'admin',
-    }),
+    })),
 
   setSelectedEmployee: (employeeId) =>
     set({ selectedEmployeeId: employeeId }),
