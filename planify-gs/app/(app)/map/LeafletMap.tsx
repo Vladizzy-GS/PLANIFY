@@ -42,15 +42,28 @@ function starIcon(color: string, selected = false): L.DivIcon {
 }
 
 // Smoothly flies map to new coords on each unique key
-function FlyToController({ cmd }: { cmd: { coords: [number, number]; key: number } | null }) {
+function FlyToController({ cmd }: { cmd: { coords: [number, number]; key: number; zoom?: number } | null }) {
   const map = useMap()
   const lastKey = useRef<number | null>(null)
   useEffect(() => {
     if (cmd && cmd.key !== lastKey.current) {
       lastKey.current = cmd.key
-      map.flyTo(cmd.coords, 14, { duration: 1.2 })
+      map.flyTo(cmd.coords, cmd.zoom ?? 14, { duration: 1.2 })
     }
   }, [cmd, map])
+  return null
+}
+
+// Flies back to initial bounds (all branches visible)
+function ResetController({ resetKey, bounds }: { resetKey: number; bounds: L.LatLngBounds }) {
+  const map = useMap()
+  const lastKey = useRef(0)
+  useEffect(() => {
+    if (resetKey > 0 && resetKey !== lastKey.current) {
+      lastKey.current = resetKey
+      map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
+    }
+  }, [resetKey, bounds, map])
   return null
 }
 
@@ -60,13 +73,15 @@ export default function LeafletMap({
   selectedSupplierId,
   selectedBranchId,
   flyCmd,
+  resetViewKey,
   onBranchClick,
 }: {
   branches: Branch[]
   suppliers: Supplier[]
   selectedSupplierId: string | null
   selectedBranchId: string | null
-  flyCmd: { coords: [number, number]; key: number } | null
+  flyCmd: { coords: [number, number]; key: number; zoom?: number } | null
+  resetViewKey?: number
   onBranchClick?: (id: string) => void
 }) {
   // Compute bounding box from all known branch coordinates to fit all on initial load
@@ -93,6 +108,7 @@ export default function LeafletMap({
       />
 
       <FlyToController cmd={flyCmd} />
+      <ResetController resetKey={resetViewKey ?? 0} bounds={bounds} />
 
       {/* Branch markers — stars ★ */}
       {branches.map(b => {
