@@ -29,7 +29,28 @@ interface NominatimResult {
   display_name: string
   lat: string
   lon: string
-  address?: { city?: string; town?: string; village?: string }
+  address?: {
+    house_number?: string
+    road?: string
+    city?: string
+    town?: string
+    village?: string
+    municipality?: string
+    state?: string
+    postcode?: string
+  }
+}
+
+// Format as: "1755 Rue Sigouin, Drummondville, QC J2C 5R7"
+function formatAddress(item: NominatimResult): string {
+  const a = item.address
+  if (!a) return item.display_name
+  const street = [a.house_number, a.road].filter(Boolean).join(' ')
+  const city = a.city || a.town || a.village || a.municipality || ''
+  const postal = a.postcode || ''
+  const parts = [street, city].filter(Boolean)
+  if (postal) parts.push(`QC ${postal}`)
+  return parts.join(', ') || item.display_name
 }
 
 // Must match LeafletMap.tsx (gat fixed to Hull downtown)
@@ -98,7 +119,7 @@ function AddressAutocomplete({
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(76,201,240,.1)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              📍 {item.display_name}
+              📍 {formatAddress(item)}
             </div>
           ))}
         </div>
@@ -217,13 +238,13 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   )
 
   function selectSuggestion(item: NominatimResult) {
-    const city = item.address?.city || item.address?.town || item.address?.village || ''
-    setForm(f => ({ ...f, address: item.display_name, city: city || f.city, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }))
+    const city = item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || ''
+    setForm(f => ({ ...f, address: formatAddress(item), city: city || f.city, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }))
     setSuggestions([])
   }
 
   function selectBranchSuggestion(item: NominatimResult) {
-    setBranchAddr(item.display_name)
+    setBranchAddr(formatAddress(item))
     setBranchGeo({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) })
     setBranchSuggestions([])
   }
@@ -386,7 +407,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
                     <div style={{ padding: '0 12px 8px 31px' }}>
                       {b.address ? (
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', lineHeight: 1.4 }}>
-                          {b.address.length > 60 ? b.address.slice(0, 60) + '…' : b.address}
+                          {b.address}
                         </div>
                       ) : (
                         <div style={{ fontSize: '11px', color: 'rgba(255,165,0,.45)' }}>Adresse non renseignée</div>
