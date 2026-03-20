@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useSessionStore } from '@/stores/useSessionStore'
 import { todayStr, localDate } from '@/lib/utils/dates'
 import type { Priority, PriorityPart } from '@/types/database'
 
@@ -319,15 +320,24 @@ export default function PrioritiesClient({ initialPriorities }: { initialPriorit
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
   const [filter, setFilter] = useState<Priority['status'] | 'all'>('all')
 
+  // ─── Employee filtering ───────────────────────────────────────────────────────
+  const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
+  const myEmployeeId = useSessionStore(s => s.myEmployeeId)
+  const isAdmin = useSessionStore(s => s.isAdmin)
+  const viewEmpId = isAdmin ? (selectedEmployeeId || null) : myEmployeeId
+  const viewPriorities = viewEmpId
+    ? priorities.filter(p => p.employee_id === viewEmpId)
+    : priorities
+
   // Stats
   const stats: { label: Priority['status'] | 'Tout'; count: number; color: string }[] = [
-    { label: 'Tout', count: priorities.length, color: 'rgba(255,255,255,.4)' },
-    { label: 'À faire', count: priorities.filter(p => p.status === 'À faire').length, color: '#4CC9F0' },
-    { label: 'En cours', count: priorities.filter(p => p.status === 'En cours').length, color: '#F77F00' },
-    { label: 'Terminé', count: priorities.filter(p => p.status === 'Terminé').length, color: '#06D6A0' },
+    { label: 'Tout', count: viewPriorities.length, color: 'rgba(255,255,255,.4)' },
+    { label: 'À faire', count: viewPriorities.filter(p => p.status === 'À faire').length, color: '#4CC9F0' },
+    { label: 'En cours', count: viewPriorities.filter(p => p.status === 'En cours').length, color: '#F77F00' },
+    { label: 'Terminé', count: viewPriorities.filter(p => p.status === 'Terminé').length, color: '#06D6A0' },
   ]
 
-  const filtered = filter === 'all' ? priorities : priorities.filter(p => p.status === filter)
+  const filtered = filter === 'all' ? viewPriorities : viewPriorities.filter(p => p.status === filter)
 
   function openModal(p: PriorityWithParts | null) {
     setEditPriority(p)
