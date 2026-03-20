@@ -29,6 +29,22 @@
   --text-muted: rgba(255,255,255,.28);
 }
 
+/* Light mode overrides */
+[data-theme="light"] {
+  --bg-base: #f0f0f8;
+  --bg-panel: rgba(0,0,0,.03);
+  --bg-card: rgba(0,0,0,.05);
+  --bg-hover: rgba(0,0,0,.08);
+  --border-subtle: rgba(0,0,0,.07);
+  --border-normal: rgba(0,0,0,.12);
+  --text-primary: #0d0d1a;
+  --text-secondary: rgba(0,0,0,.60);
+  --text-muted: rgba(0,0,0,.38);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.25); }
+
 * {
   box-sizing: border-box;
   padding: 0;
