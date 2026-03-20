@@ -14,12 +14,6 @@ import type { Event, Employee, Branch } from '@/types/database'
 
 const COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0','#3A86FF','#FB5607','#8338EC','#06A77D']
 
-function isoWeek(d: Date): number {
-  const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
-  return Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
-}
 
 function priorityBadge(level: string) {
   if (level === 'Élevé') return { label: 'ÉLEVÉ', color: '#FF4D6D', bg: 'rgba(255,77,109,.15)' }
@@ -735,8 +729,7 @@ export default function ScheduleClient({
     if (calMode === 'week') {
       const wkEnd = addDays(wkStart, showWeekends ? 6 : 4)
       const d = localDate(wkStart)
-      const wk = isoWeek(d)
-      return `Sem. ${wk} · ${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
+      return `${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
     }
     // month
     return `${fullMonth(monView)} ${localDate(monView).getFullYear()}`
