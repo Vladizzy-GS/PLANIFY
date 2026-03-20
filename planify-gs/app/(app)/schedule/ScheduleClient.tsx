@@ -722,6 +722,10 @@ export default function ScheduleClient({
     ? events.filter(ev => ev.employee_id === viewEmpId)
     : events
 
+  // Schedule subtitle: show which employee is being viewed
+  const viewEmployee = viewEmpId ? employees.find(e => e.id === viewEmpId) : null
+  const scheduleTitle = viewEmployee ? `Horaire – ${viewEmployee.name}` : 'Horaire'
+
   // Label for current view
   const calLabel = (() => {
     if (calMode === 'day') {
@@ -785,7 +789,7 @@ export default function ScheduleClient({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,.35)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '2px' }}>Planning</div>
-          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '22px', fontWeight: 800, color: '#e8e8f0' }}>Horaire</h1>
+          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '22px', fontWeight: 800, color: '#e8e8f0' }}>{scheduleTitle}</h1>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Mode switcher */}
