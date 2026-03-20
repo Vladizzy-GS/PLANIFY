@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
+import { Inter, Syne } from 'next/font/google'
 import './globals.css'
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const syne = Syne({ subsets: ['latin'], weight: ['400', '600', '700', '800'], variable: '--font-syne' })
 
 export const metadata: Metadata = {
   title: 'Planify · GS',
@@ -8,12 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="fr" className={`${inter.variable} ${syne.variable}`}>
       <body className="antialiased">
         {children}
       </body>
