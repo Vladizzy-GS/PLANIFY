@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useSessionStore } from '@/stores/useSessionStore'
 import { eventVisibleOn, todayStr, localDate } from '@/lib/utils/dates'
 import type { Event, Priority } from '@/types/database'
 
@@ -141,15 +142,25 @@ export default function TasksClient({
   const today = todayStr()
   const todayDate = localDate(today)
 
+  // ─── Employee filtering (mirrors ScheduleClient pattern) ─────────────────────
+  const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
+  const myEmployeeId = useSessionStore(s => s.myEmployeeId)
+  const isAdmin = useSessionStore(s => s.isAdmin)
+  const viewEmpId = isAdmin ? (selectedEmployeeId || null) : myEmployeeId
+  const viewEvents = viewEmpId ? events.filter(ev => ev.employee_id === viewEmpId) : events
+  const viewPriorities = viewEmpId
+    ? initialPriorities.filter(p => p.employee_id === viewEmpId)
+    : initialPriorities
+
   // Classify events
-  const overdue = events.filter(ev => {
+  const overdue = viewEvents.filter(ev => {
     const end = localDate(ev.end_date)
     return end < todayDate && !ev.done
   }).sort((a, b) => b.end_date.localeCompare(a.end_date))
 
-  const todayEvts = events.filter(ev => eventVisibleOn(ev, today))
+  const todayEvts = viewEvents.filter(ev => eventVisibleOn(ev, today))
 
-  const upcoming = events.filter(ev => {
+  const upcoming = viewEvents.filter(ev => {
     const s = localDate(ev.start_date)
     return s > todayDate && !ev.done
   }).sort((a, b) => a.start_date.localeCompare(b.start_date))
@@ -162,10 +173,10 @@ export default function TasksClient({
   })
   const upDates = Object.keys(upGroups).sort().slice(0, 5)
 
-  const activePriorities = initialPriorities.filter(p => p.status !== 'Terminé')
+  const activePriorities = viewPriorities.filter(p => p.status !== 'Terminé')
 
-  const totalDone = events.filter(e => e.done).length
-  const pct = events.length ? Math.round(totalDone / events.length * 100) : 0
+  const totalDone = viewEvents.filter(e => e.done).length
+  const pct = viewEvents.length ? Math.round(totalDone / viewEvents.length * 100) : 0
 
   function handleToggle(updated: Event) {
     setEvents(prev => prev.map(ev => ev.id === updated.id ? updated : ev))
@@ -188,7 +199,7 @@ export default function TasksClient({
             <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: '#4CAF50', borderRadius: '2px' }} />
             </div>
-            <span style={{ fontWeight: 700, color: '#e8e8f0', fontSize: '12px' }}>{totalDone}/{events.length}</span>
+            <span style={{ fontWeight: 700, color: '#e8e8f0', fontSize: '12px' }}>{totalDone}/{viewEvents.length}</span>
           </div>
           <Link
             href="/schedule"

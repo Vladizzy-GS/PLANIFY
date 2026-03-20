@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useSessionStore } from '@/stores/useSessionStore'
 import { todayStr, localDate } from '@/lib/utils/dates'
 import type { Alert } from '@/types/database'
 
@@ -184,10 +185,20 @@ export default function AlertsClient({ initialAlerts }: { initialAlerts: Alert[]
   const [alerts, setAlerts] = useState(initialAlerts)
   const [modalOpen, setModalOpen] = useState(false)
 
+  // ─── Employee filtering ───────────────────────────────────────────────────────
+  const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
+  const myEmployeeId = useSessionStore(s => s.myEmployeeId)
+  const isAdmin = useSessionStore(s => s.isAdmin)
+  const viewEmpId = isAdmin ? (selectedEmployeeId || null) : myEmployeeId
+  // Show alerts for the selected employee; system alerts (employee_id=null) visible to all
+  const viewAlerts = viewEmpId
+    ? alerts.filter(a => a.employee_id === viewEmpId || a.employee_id === null)
+    : alerts
+
   const today = todayStr()
-  const unread = alerts.filter(a => !a.is_read)
-  const overdue = alerts.filter(a => a.alert_date && a.alert_date < today && !a.is_read)
-  const read = alerts.filter(a => a.is_read)
+  const unread = viewAlerts.filter(a => !a.is_read)
+  const overdue = viewAlerts.filter(a => a.alert_date && a.alert_date < today && !a.is_read)
+  const read = viewAlerts.filter(a => a.is_read)
 
   function onSaved(a: Alert) {
     setAlerts(prev => [a, ...prev])
@@ -247,7 +258,7 @@ export default function AlertsClient({ initialAlerts }: { initialAlerts: Alert[]
           </div>
         )}
 
-        {alerts.length === 0 && (
+        {viewAlerts.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px', color: 'rgba(255,255,255,.25)', fontSize: '14px' }}>
             Aucune alerte
           </div>
