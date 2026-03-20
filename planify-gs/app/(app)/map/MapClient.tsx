@@ -52,10 +52,19 @@ const BRANCH_COORDS: Record<string, [number, number]> = {
 }
 
 const BRANCH_COLORS = [
-  '#FF4D6D', '#F77F00', '#FCBF49', '#4CC9F0', '#7B2FBE',
+  '#FF0000', '#FF4D6D', '#F77F00', '#FCBF49', '#4CC9F0', '#7B2FBE',
   '#06D6A0', '#EF233C', '#3A86FF', '#FB5607', '#8338EC',
-  '#06A77D', '#FF006E',
+  '#06A77D', '#FF006E', '#FFD700', '#00CED1',
 ]
+
+function pickNextColor(existingBranches: { color: string }[]): string {
+  const used = new Set(existingBranches.map(b => b.color.toUpperCase()))
+  for (const c of BRANCH_COLORS) {
+    if (!used.has(c.toUpperCase())) return c
+  }
+  // All palette colors used — generate a deterministic unique one
+  return `hsl(${(existingBranches.length * 47) % 360}, 80%, 55%)`
+}
 
 type SupForm = { name: string; category: string; city: string; phone: string; email: string; address: string; notes: string; lat: number | null; lng: number | null }
 const EMPTY_SUP: SupForm = {
@@ -436,7 +445,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
               </div>
               {isAdmin && (
                 <button
-                  onClick={() => setShowNewBranch(true)}
+                  onClick={() => { setNewBranch(f => ({ ...f, color: pickNextColor(branches) })); setShowNewBranch(true) }}
                   title="Ajouter une succursale"
                   style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '18px', lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >+</button>
@@ -715,22 +724,10 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
               style={inp}
             />
 
-            {/* Color picker */}
-            <div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginBottom: '6px' }}>Couleur</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {BRANCH_COLORS.map(c => (
-                  <button
-                    key={c} type="button"
-                    onClick={() => setNewBranch(f => ({ ...f, color: c }))}
-                    style={{
-                      width: '24px', height: '24px', borderRadius: '50%', background: c,
-                      border: `2px solid ${newBranch.color === c ? '#fff' : 'transparent'}`,
-                      cursor: 'pointer', padding: 0, outline: 'none',
-                    }}
-                  />
-                ))}
-              </div>
+            {/* Auto-assigned color preview */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: newBranch.color, flexShrink: 0 }} />
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)' }}>Couleur assignée automatiquement</div>
             </div>
 
             <AddressField

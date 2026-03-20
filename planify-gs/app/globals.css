@@ -1,11 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  --font-inter: 'Inter', sans-serif;
-  --font-syne: 'Syne', sans-serif;
-}
-
-:root {
   /* Brand colors */
   --color-red: #FF4D6D;
   --color-orange: #F77F00;
