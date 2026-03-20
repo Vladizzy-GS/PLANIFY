@@ -81,19 +81,20 @@ const inp: React.CSSProperties = {
 
 // Reusable address autocomplete field
 function AddressAutocomplete({
-  value, onChange, onSelect, suggestions, label,
+  value, onChange, onSelect, suggestions, label, geocoded,
 }: {
   value: string
   onChange: (v: string) => void
   onSelect: (item: NominatimResult) => void
   suggestions: NominatimResult[]
   label?: string
+  geocoded?: boolean
 }) {
-  const geocoded = suggestions.length === 0 && value.length > 4
+  const noMatch = !geocoded && suggestions.length === 0 && value.length > 4
   return (
     <div style={{ position: 'relative' }}>
       {label && (
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginBottom: '5px' }}>
+        <div style={{ fontSize: '11px', color: geocoded ? '#06D6A0' : 'rgba(255,255,255,.4)', marginBottom: '5px' }}>
           {label}
         </div>
       )}
@@ -124,7 +125,7 @@ function AddressAutocomplete({
           ))}
         </div>
       )}
-      {geocoded && (
+      {noMatch && (
         <div style={{ fontSize: '10px', color: 'rgba(255,165,0,.6)', marginTop: '4px' }}>
           Aucune suggestion — vérifiez l'adresse
         </div>
@@ -239,12 +240,13 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
 
   function selectSuggestion(item: NominatimResult) {
     const city = item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || ''
-    setForm(f => ({ ...f, address: formatAddress(item), city: city || f.city, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }))
+    // Keep the user's typed address — only update city + coordinates
+    setForm(f => ({ ...f, city: city || f.city, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }))
     setSuggestions([])
   }
 
   function selectBranchSuggestion(item: NominatimResult) {
-    setBranchAddr(formatAddress(item))
+    // Keep the user's typed address — only update coordinates
     setBranchGeo({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) })
     setBranchSuggestions([])
   }
@@ -531,11 +533,12 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
             <input placeholder="Courriel" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
 
             <AddressAutocomplete
-              label={`Adresse ${form.lat ? '✓ géolocalisée' : '· tapez pour trouver'}`}
+              label={form.lat ? '✓ Adresse géolocalisée' : 'Adresse · tapez pour trouver'}
               value={form.address}
               onChange={handleAddressInput}
               onSelect={selectSuggestion}
               suggestions={suggestions}
+              geocoded={!!form.lat}
             />
 
             <input placeholder="Ville (remplie automatiquement)" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={inp} />
@@ -582,6 +585,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
               onChange={handleBranchAddressInput}
               onSelect={selectBranchSuggestion}
               suggestions={branchSuggestions}
+              geocoded={!!branchGeo}
             />
 
             {branchGeo && (
