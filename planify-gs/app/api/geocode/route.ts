@@ -3,8 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 // Nominatim geocoding proxy
-// Adds required User-Agent, handles rate limiting at the server level
-// Client sends: GET /api/geocode?q=<address>
+// Adds required User-Agent, enforces rate limiting, restricts to Canada
+// Client usage:
+//   GET /api/geocode?q=<address>         → 1 result (reverse lookup)
+//   GET /api/geocode?q=<address>&limit=5 → up to 5 suggestions (autocomplete)
 
 export async function GET(request: NextRequest) {
   const limited = checkRateLimit(request)
@@ -18,11 +20,15 @@ export async function GET(request: NextRequest) {
   if (!q) return NextResponse.json({ error: 'Missing query parameter q' }, { status: 400 })
   if (q.length > 200) return NextResponse.json({ error: 'Query too long' }, { status: 400 })
 
+  // Allow up to 5 results for address suggestion dropdowns
+  const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit') ?? '1'), 1), 5)
+
   const url = new URL('https://nominatim.openstreetmap.org/search')
   url.searchParams.set('q', q)
   url.searchParams.set('format', 'json')
-  url.searchParams.set('limit', '1')
+  url.searchParams.set('limit', String(limit))
   url.searchParams.set('countrycodes', 'ca')
+  url.searchParams.set('addressdetails', '1')  // structured city/town/village fields
 
   const res = await fetch(url.toString(), {
     headers: {
