@@ -30,47 +30,39 @@ interface NominatimResult {
   lat: string
   lon: string
   address?: {
-    house_number?: string
-    road?: string
-    city?: string
-    town?: string
-    village?: string
-    municipality?: string
-    state?: string
+    house_number?: string; road?: string
+    city?: string; town?: string; village?: string; municipality?: string
     postcode?: string
   }
 }
 
-// Format as: "1755 Rue Sigouin, Drummondville, QC J2C 5R7"
-function formatAddress(item: NominatimResult): string {
-  const a = item.address
-  if (!a) return item.display_name
-  const street = [a.house_number, a.road].filter(Boolean).join(' ')
-  const city = a.city || a.town || a.village || a.municipality || ''
-  const postal = a.postcode || ''
-  const parts = [street, city].filter(Boolean)
-  if (postal) parts.push(`QC ${postal}`)
-  return parts.join(', ') || item.display_name
-}
-
-// Must match LeafletMap.tsx (gat fixed to Hull downtown)
+// Fallback coords for branches without DB lat/lng
 const BRANCH_COORDS: Record<string, [number, number]> = {
-  mtl:  [45.5017, -73.5673],
-  lev:  [46.8036, -71.1756],
-  drum: [45.8833, -72.4833],
-  gat:  [45.4253, -75.7011],   // Maison du Citoyen / Hull downtown (FIXED)
-  ndp:  [46.0500, -73.4333],
-  jon:  [48.4200, -71.2467],
-  ryn:  [48.2333, -79.0167],
-  sca:  [45.4014, -73.5811],
-  sjr:  [45.7800, -74.0042],
-  she:  [45.4000, -71.8989],
-  tr:   [46.3500, -72.5500],
+  mtl: [45.5017, -73.5673],
+  lev: [46.7124, -71.3750],
+  drum: [45.8700, -72.5225],
+  gat: [45.4448, -75.7382],
+  ndp: [46.0539, -73.4354],
+  jon: [48.4059, -71.2498],
+  ryn: [48.2013, -79.0822],
+  sca: [45.4026, -73.5791],
+  sjr: [45.7800, -74.0042],
+  she: [45.4000, -71.8989],
+  tr: [46.3500, -72.5500],
 }
 
-const EMPTY_FORM: { name: string; category: string; city: string; phone: string; email: string; address: string; lat: number | null; lng: number | null } = {
-  name: '', category: SUP_CATS[0], city: '', phone: '', email: '',
-  address: '', lat: null, lng: null,
+const BRANCH_COLORS = [
+  '#FF4D6D', '#F77F00', '#FCBF49', '#4CC9F0', '#7B2FBE',
+  '#06D6A0', '#EF233C', '#3A86FF', '#FB5607', '#8338EC',
+  '#06A77D', '#FF006E',
+]
+
+const EMPTY_SUP: { name: string; category: string; city: string; phone: string; email: string; address: string; lat: number | null; lng: number | null } = {
+  name: '', category: SUP_CATS[0], city: '', phone: '', email: '', address: '', lat: null, lng: null,
+}
+
+const EMPTY_NEW_BRANCH = {
+  name: '', short_code: '', color: BRANCH_COLORS[0], address: '', lat: null as number | null, lng: null as number | null,
 }
 
 const inp: React.CSSProperties = {
@@ -79,8 +71,8 @@ const inp: React.CSSProperties = {
   color: '#e8e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
 }
 
-// Reusable address autocomplete field
-function AddressAutocomplete({
+// ── Address autocomplete field ──────────────────────────────
+function AddressField({
   value, onChange, onSelect, suggestions, label, geocoded,
 }: {
   value: string
@@ -90,7 +82,6 @@ function AddressAutocomplete({
   label?: string
   geocoded?: boolean
 }) {
-  const noMatch = !geocoded && suggestions.length === 0 && value.length > 4
   return (
     <div style={{ position: 'relative' }}>
       {label && (
@@ -99,7 +90,7 @@ function AddressAutocomplete({
         </div>
       )}
       <input
-        placeholder="Ex: 123 Rue Principale, Montréal…"
+        placeholder="Ex: 1755 Rue Sigouin, Drummondville…"
         value={value}
         onChange={e => onChange(e.target.value)}
         style={inp}
@@ -112,20 +103,27 @@ function AddressAutocomplete({
           borderRadius: '8px', zIndex: 100, overflow: 'hidden',
           boxShadow: '0 8px 24px rgba(0,0,0,.5)',
         }}>
-          {suggestions.map(item => (
-            <div
-              key={item.place_id}
-              onMouseDown={e => { e.preventDefault(); onSelect(item) }}
-              style={{ padding: '9px 12px', fontSize: '12px', color: 'rgba(255,255,255,.8)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.06)', lineHeight: 1.4 }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(76,201,240,.1)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              📍 {formatAddress(item)}
-            </div>
-          ))}
+          {suggestions.map(item => {
+            const a = item.address
+            const street = a ? [a.house_number, a.road].filter(Boolean).join(' ') : ''
+            const city = a ? (a.city || a.town || a.village || a.municipality || '') : ''
+            const postal = a?.postcode || ''
+            const label = [street, city, postal ? `QC ${postal}` : ''].filter(Boolean).join(', ') || item.display_name
+            return (
+              <div
+                key={item.place_id}
+                onMouseDown={e => { e.preventDefault(); onSelect(item) }}
+                style={{ padding: '9px 12px', fontSize: '12px', color: 'rgba(255,255,255,.8)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.06)', lineHeight: 1.4 }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(76,201,240,.1)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                📍 {label}
+              </div>
+            )
+          })}
         </div>
       )}
-      {noMatch && (
+      {!geocoded && suggestions.length === 0 && value.length > 4 && (
         <div style={{ fontSize: '10px', color: 'rgba(255,165,0,.6)', marginTop: '4px' }}>
           Aucune suggestion — vérifiez l'adresse
         </div>
@@ -134,6 +132,40 @@ function AddressAutocomplete({
   )
 }
 
+// ── Debounced address search ────────────────────────────────
+function useAddressSearch() {
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
+  const [geocoded, setGeocoded] = useState(false)
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function search(val: string) {
+    setGeocoded(false)
+    setSuggestions([])
+    if (debounce.current) clearTimeout(debounce.current)
+    if (val.length < 4) return
+    debounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(val)}&limit=5`)
+        const data = await res.json()
+        setSuggestions(Array.isArray(data) ? data : [])
+      } catch { /* ignore */ }
+    }, 450)
+  }
+
+  function pick(item: NominatimResult): { lat: number; lng: number; city: string } {
+    setSuggestions([])
+    setGeocoded(true)
+    const a = item.address
+    const city = a ? (a.city || a.town || a.village || a.municipality || '') : ''
+    return { lat: parseFloat(item.lat), lng: parseFloat(item.lon), city }
+  }
+
+  function reset() { setSuggestions([]); setGeocoded(false) }
+
+  return { suggestions, geocoded, search, pick, reset }
+}
+
+// ─── Main component ─────────────────────────────────────────
 export default function MapClient({ initialSuppliers, branches: initBranches, isAdmin }: {
   initialSuppliers: Supplier[]
   branches: Branch[]
@@ -141,7 +173,6 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
 }) {
   const supabase = createClient()
 
-  // ── Core state ────────────────────────────────────────────────
   const [suppliers, setSuppliers] = useState(initialSuppliers)
   const [branches, setBranches] = useState(initBranches)
   const [search, setSearch] = useState('')
@@ -150,25 +181,26 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
   const [flyCmd, setFlyCmd] = useState<{ coords: [number, number]; key: number } | null>(null)
 
-  // ── Add supplier modal ────────────────────────────────────────
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ ...EMPTY_FORM })
-  const [saving, setSaving] = useState(false)
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ── Supplier modal ──────────────────────────────────────
+  const [showSupModal, setShowSupModal] = useState(false)
+  const [supForm, setSupForm] = useState({ ...EMPTY_SUP })
+  const [supSaving, setSupSaving] = useState(false)
+  const supAddr = useAddressSearch()
 
-  // ── Branch address edit modal ─────────────────────────────────
-  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
-  const [branchAddr, setBranchAddr] = useState('')
-  const [branchGeo, setBranchGeo] = useState<{ lat: number; lng: number } | null>(null)
-  const [branchSuggestions, setBranchSuggestions] = useState<NominatimResult[]>([])
-  const [branchSaving, setBranchSaving] = useState(false)
-  const branchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ── Branch address edit modal ───────────────────────────
+  const [editBranch, setEditBranch] = useState<Branch | null>(null)
+  const [editAddr, setEditAddr] = useState('')
+  const [editGeo, setEditGeo] = useState<{ lat: number; lng: number } | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const editAddrSearch = useAddressSearch()
 
-  // ── Supplier per-row geocoding ────────────────────────────────
-  const [geocodingId, setGeocodingId] = useState<string | null>(null)
+  // ── New branch modal ────────────────────────────────────
+  const [showNewBranch, setShowNewBranch] = useState(false)
+  const [newBranch, setNewBranch] = useState({ ...EMPTY_NEW_BRANCH })
+  const [newBranchSaving, setNewBranchSaving] = useState(false)
+  const newBranchAddr = useAddressSearch()
 
-  // ── Helpers ───────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────
   const filtered = suppliers.filter(s => {
     const q = search.toLowerCase()
     return (s.name.toLowerCase().includes(q) || (s.city ?? '').toLowerCase().includes(q)) &&
@@ -180,9 +212,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
     return BRANCH_COORDS[b.id] ?? null
   }
 
-  function fly(coords: [number, number]) {
-    setFlyCmd({ coords, key: Date.now() })
-  }
+  function fly(coords: [number, number]) { setFlyCmd({ coords, key: Date.now() }) }
 
   function handleSelectSupplier(id: string) {
     const next = id === selectedId ? null : id
@@ -201,157 +231,111 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
     if (coords) fly(coords)
   }
 
-  // ── Debounced geocode search ──────────────────────────────────
-  function makeAddressHandler(
-    setter: (v: string) => void,
-    geoSetter: (g: { lat: number; lng: number } | null) => void,
-    sugSetter: (s: NominatimResult[]) => void,
-    ref: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
-  ) {
-    return (val: string) => {
-      setter(val)
-      geoSetter(null)
-      sugSetter([])
-      if (ref.current) clearTimeout(ref.current)
-      if (val.length < 4) return
-      ref.current = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/geocode?q=${encodeURIComponent(val)}&limit=5`)
-          const data = await res.json()
-          sugSetter(Array.isArray(data) ? data : [])
-        } catch { /* ignore */ }
-      }, 450)
-    }
-  }
-
-  const handleAddressInput = makeAddressHandler(
-    v => setForm(f => ({ ...f, address: v, lat: null, lng: null })),
-    () => {},
-    setSuggestions,
-    debounceRef,
-  )
-
-  const handleBranchAddressInput = makeAddressHandler(
-    setBranchAddr,
-    setBranchGeo,
-    setBranchSuggestions,
-    branchDebounce,
-  )
-
-  function selectSuggestion(item: NominatimResult) {
-    const city = item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || ''
-    // Keep the user's typed address — only update city + coordinates
-    setForm(f => ({ ...f, city: city || f.city, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }))
-    setSuggestions([])
-  }
-
-  function selectBranchSuggestion(item: NominatimResult) {
-    // Keep the user's typed address — only update coordinates
-    setBranchGeo({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) })
-    setBranchSuggestions([])
-  }
-
-  // ── Add supplier ──────────────────────────────────────────────
+  // ── Supplier CRUD ────────────────────────────────────────
   async function handleAddSupplier(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
+    setSupSaving(true)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any).from('suppliers').insert({
-      name: form.name, category: form.category,
-      city: form.city || null, phone: form.phone || null,
-      email: form.email || null, address: form.address || null,
-      lat: form.lat ?? null, lng: form.lng ?? null,
+      name: supForm.name, category: supForm.category,
+      city: supForm.city || null, phone: supForm.phone || null,
+      email: supForm.email || null, address: supForm.address || null,
+      lat: supForm.lat ?? null, lng: supForm.lng ?? null,
     }).select().single()
     if (!error && data) {
       const added = data as Supplier
       setSuppliers(prev => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)))
-      setShowModal(false)
-      setForm({ ...EMPTY_FORM })
-      setSuggestions([])
-      if (added.lat && added.lng) {
-        fly([Number(added.lat), Number(added.lng)])
-        setSelectedId(added.id)
-      }
+      setShowSupModal(false)
+      setSupForm({ ...EMPTY_SUP })
+      supAddr.reset()
+      if (added.lat && added.lng) { fly([Number(added.lat), Number(added.lng)]); setSelectedId(added.id) }
     }
-    setSaving(false)
+    setSupSaving(false)
   }
 
-  async function handleDelete(id: string) {
+  async function handleDeleteSup(id: string) {
     if (!confirm('Supprimer ce fournisseur ?')) return
     await supabase.from('suppliers').delete().eq('id', id)
     setSuppliers(prev => prev.filter(s => s.id !== id))
     if (selectedId === id) setSelectedId(null)
   }
 
-  // ── Geocode existing supplier by name + city ──────────────────
-  async function geocodeSupplier(s: Supplier) {
-    if (geocodingId) return
-    setGeocodingId(s.id)
-    try {
-      const q = [s.name, s.city, 'Québec', 'Canada'].filter(Boolean).join(', ')
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}&limit=1`)
-      const data = await res.json()
-      if (Array.isArray(data) && data[0]) {
-        const lat = parseFloat(data[0].lat)
-        const lng = parseFloat(data[0].lon)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any).from('suppliers').update({ lat, lng }).eq('id', s.id)
-        setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, lat, lng } : x))
-      }
-    } catch { /* ignore */ }
-    setGeocodingId(null)
+  // ── Branch address edit ──────────────────────────────────
+  function openEditBranch(b: Branch) {
+    setEditBranch(b)
+    setEditAddr(b.address ?? '')
+    setEditGeo(b.lat && b.lng ? { lat: Number(b.lat), lng: Number(b.lng) } : null)
+    editAddrSearch.reset()
   }
 
-  // ── Save branch address ───────────────────────────────────────
+  function closeEditBranch() {
+    setEditBranch(null); setEditAddr(''); setEditGeo(null); editAddrSearch.reset()
+  }
+
   async function saveBranchAddress(e: React.FormEvent) {
     e.preventDefault()
-    if (!editingBranch || !branchAddr) return
-    setBranchSaving(true)
+    if (!editBranch || !editAddr.trim()) return
+    setEditSaving(true)
     try {
-      const body: Record<string, unknown> = { id: editingBranch.id, address: branchAddr }
-      if (branchGeo) { body.lat = branchGeo.lat; body.lng = branchGeo.lng }
+      const body: Record<string, unknown> = { id: editBranch.id, address: editAddr.trim() }
+      if (editGeo) { body.lat = editGeo.lat; body.lng = editGeo.lng }
       const res = await fetch('/api/admin/branches', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       })
       if (res.ok) {
         const updated = await res.json()
-        setBranches(prev => prev.map(b => b.id === editingBranch.id ? { ...b, ...updated } : b))
-        if (branchGeo) fly([branchGeo.lat, branchGeo.lng])
+        setBranches(prev => prev.map(b => b.id === editBranch.id ? { ...b, ...updated } : b))
+        if (editGeo) fly([editGeo.lat, editGeo.lng])
       }
     } catch { /* ignore */ }
-    setBranchSaving(false)
-    setEditingBranch(null)
-    setBranchAddr('')
-    setBranchGeo(null)
-    setBranchSuggestions([])
+    setEditSaving(false)
+    closeEditBranch()
   }
 
-  function openBranchEdit(b: Branch) {
-    setEditingBranch(b)
-    setBranchAddr(b.address ?? '')
-    setBranchGeo(b.lat && b.lng ? { lat: Number(b.lat), lng: Number(b.lng) } : null)
-    setBranchSuggestions([])
+  // ── New branch ───────────────────────────────────────────
+  function slugify(name: string) {
+    return name.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '').slice(0, 8)
   }
 
-  function closeBranchEdit() {
-    setEditingBranch(null)
-    setBranchAddr('')
-    setBranchGeo(null)
-    setBranchSuggestions([])
+  function closeNewBranch() {
+    setShowNewBranch(false); setNewBranch({ ...EMPTY_NEW_BRANCH }); newBranchAddr.reset()
   }
 
-  function closeModal() {
-    setShowModal(false)
-    setForm({ ...EMPTY_FORM })
-    setSuggestions([])
+  async function handleCreateBranch(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newBranch.name.trim() || !newBranch.short_code.trim()) return
+    setNewBranchSaving(true)
+    try {
+      const id = slugify(newBranch.name) || `br${Date.now().toString(36)}`
+      const body: Record<string, unknown> = {
+        id,
+        name: newBranch.name.trim(),
+        short_code: newBranch.short_code.trim().toUpperCase(),
+        color: newBranch.color,
+        address: newBranch.address.trim() || null,
+        lat: newBranch.lat ?? null,
+        lng: newBranch.lng ?? null,
+      }
+      const res = await fetch('/api/admin/branches', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        setBranches(prev => [...prev, created as Branch].sort((a, b) => a.name.localeCompare(b.name)))
+        if (created.lat && created.lng) fly([Number(created.lat), Number(created.lng)])
+      }
+    } catch { /* ignore */ }
+    setNewBranchSaving(false)
+    closeNewBranch()
   }
 
-  // ── Render ────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px 28px', gap: '20px', overflow: 'auto' }}>
-      {/* Page header */}
+
+      {/* Header */}
       <div>
         <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,.35)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Réseau</div>
         <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '26px', fontWeight: 800, color: '#e8e8f0' }}>Carte & Fournisseurs</h1>
@@ -374,11 +358,21 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
             />
           </div>
 
-          {/* Branch list */}
+          {/* Branch grid */}
           <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '14px', padding: '16px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', marginBottom: '14px' }}>
-              Succursales &nbsp;<span style={{ fontWeight: 400, color: 'rgba(255,255,255,.25)' }}>— cliquer pour localiser</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: 'rgba(255,255,255,.4)', textTransform: 'uppercase' }}>
+                Succursales &nbsp;<span style={{ fontWeight: 400, color: 'rgba(255,255,255,.25)' }}>— cliquer pour localiser</span>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowNewBranch(true)}
+                  title="Ajouter une succursale"
+                  style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '18px', lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >+</button>
+              )}
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
               {branches.map(b => {
                 const active = selectedBranchId === b.id
@@ -397,27 +391,23 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
                       onClick={() => handleBranchClick(b.id)}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
                     >
-                      {/* Star dot replaced by branch color indicator */}
                       <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: b.color, flexShrink: 0, boxShadow: active ? `0 0 6px ${b.color}` : 'none' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div>
                         <span style={{ fontSize: '13px', fontWeight: 700, color: '#e8e8f0' }}>{b.name}</span>
                         <span style={{ fontSize: '11px', fontWeight: 700, color: b.color, marginLeft: '6px' }}>({b.short_code})</span>
                       </div>
                     </button>
 
-                    {/* Address row */}
+                    {/* Address + edit */}
                     <div style={{ padding: '0 12px 8px 31px' }}>
-                      {b.address ? (
-                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', lineHeight: 1.4 }}>
-                          {b.address}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '11px', color: 'rgba(255,165,0,.45)' }}>Adresse non renseignée</div>
-                      )}
+                      {b.address
+                        ? <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', lineHeight: 1.4 }}>{b.address}</div>
+                        : <div style={{ fontSize: '11px', color: 'rgba(255,165,0,.45)' }}>Adresse non renseignée</div>
+                      }
                       {isAdmin && (
                         <button
-                          onClick={() => openBranchEdit(b)}
-                          style={{ marginTop: '4px', fontSize: '10px', color: 'rgba(255,255,255,.3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                          onClick={() => openEditBranch(b)}
+                          style={{ marginTop: '3px', fontSize: '10px', color: 'rgba(255,255,255,.25)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
                         >
                           {b.address ? 'Modifier' : '+ Ajouter adresse'}
                         </button>
@@ -446,13 +436,11 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
           </div>
 
           <input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} style={inp} />
-
           <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
             <option value="Toutes les catégories">Toutes les catégories</option>
             {SUP_CATS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          {/* Supplier list */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {filtered.map(s => (
               <div
@@ -472,28 +460,11 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
                   </div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginLeft: '13px' }}>{s.category}</div>
                   {s.city && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginLeft: '13px' }}>{s.city}</div>}
-                  {!s.lat && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '13px', marginTop: '2px' }}>
-                      <span style={{ fontSize: '10px', color: 'rgba(255,165,0,.55)' }}>Non géolocalisé</span>
-                      {isAdmin && s.city && (
-                        <button
-                          onClick={e => { e.stopPropagation(); geocodeSupplier(s) }}
-                          disabled={geocodingId === s.id}
-                          style={{
-                            fontSize: '10px', padding: '1px 6px', borderRadius: '4px', cursor: 'pointer',
-                            background: 'rgba(76,201,240,.15)', border: '1px solid rgba(76,201,240,.3)',
-                            color: '#4CC9F0', opacity: geocodingId === s.id ? .5 : 1,
-                          }}
-                        >
-                          {geocodingId === s.id ? '…' : '📍 Géolocaliser'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  {!s.lat && <div style={{ fontSize: '10px', color: 'rgba(255,165,0,.5)', marginLeft: '13px', marginTop: '2px' }}>Non géolocalisé</div>}
                 </div>
                 {isAdmin && (
                   <button
-                    onClick={e => { e.stopPropagation(); handleDelete(s.id) }}
+                    onClick={e => { e.stopPropagation(); handleDeleteSup(s.id) }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.2)', fontSize: '16px', padding: '0 2px', flexShrink: 0, lineHeight: 1 }}
                   >×</button>
                 )}
@@ -505,54 +476,47 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
           </div>
 
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setShowSupModal(true)}
             style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
-          >
-            + Ajouter un fournisseur
-          </button>
+          >+ Ajouter un fournisseur</button>
         </div>
       </div>
 
       {/* ── Add supplier modal ── */}
-      {showModal && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
-        >
-          <form
-            onSubmit={handleAddSupplier}
-            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '90vh', overflowY: 'auto' }}
-          >
+      {showSupModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowSupModal(false); setSupForm({ ...EMPTY_SUP }); supAddr.reset() } }}>
+          <form onSubmit={handleAddSupplier}
+            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 700, color: '#e8e8f0', marginBottom: '4px' }}>Nouveau fournisseur</h2>
 
-            <input required placeholder="Nom *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} />
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
+            <input required placeholder="Nom *" value={supForm.name} onChange={e => setSupForm(f => ({ ...f, name: e.target.value }))} style={inp} />
+            <select value={supForm.category} onChange={e => setSupForm(f => ({ ...f, category: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
               {SUP_CATS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <input placeholder="Téléphone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} />
-            <input placeholder="Courriel" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
+            <input placeholder="Téléphone" value={supForm.phone} onChange={e => setSupForm(f => ({ ...f, phone: e.target.value }))} style={inp} />
+            <input placeholder="Courriel" type="email" value={supForm.email} onChange={e => setSupForm(f => ({ ...f, email: e.target.value }))} style={inp} />
 
-            <AddressAutocomplete
-              label={form.lat ? '✓ Adresse géolocalisée' : 'Adresse · tapez pour trouver'}
-              value={form.address}
-              onChange={handleAddressInput}
-              onSelect={selectSuggestion}
-              suggestions={suggestions}
-              geocoded={!!form.lat}
+            <AddressField
+              label={supForm.lat ? '✓ Adresse géolocalisée' : 'Adresse · tapez pour trouver'}
+              value={supForm.address}
+              geocoded={!!supForm.lat}
+              suggestions={supAddr.suggestions}
+              onChange={v => { setSupForm(f => ({ ...f, address: v, lat: null, lng: null })); supAddr.search(v) }}
+              onSelect={item => { const g = supAddr.pick(item); setSupForm(f => ({ ...f, city: g.city || f.city, lat: g.lat, lng: g.lng })) }}
             />
+            <input placeholder="Ville (remplie automatiquement)" value={supForm.city} onChange={e => setSupForm(f => ({ ...f, city: e.target.value }))} style={inp} />
 
-            <input placeholder="Ville (remplie automatiquement)" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={inp} />
-
-            {form.lat && form.lng && (
+            {supForm.lat && supForm.lng && (
               <div style={{ fontSize: '11px', color: '#06D6A0', background: 'rgba(6,214,160,.06)', border: '1px solid rgba(6,214,160,.15)', borderRadius: '6px', padding: '6px 10px' }}>
-                ✓ Coordonnées : {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
+                ✓ Coordonnées : {supForm.lat.toFixed(5)}, {supForm.lng.toFixed(5)}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <button type="button" onClick={closeModal} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
-              <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#4CC9F0', color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .7 : 1 }}>
-                {saving ? '…' : 'Ajouter'}
+              <button type="button" onClick={() => { setShowSupModal(false); setSupForm({ ...EMPTY_SUP }); supAddr.reset() }} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+              <button type="submit" disabled={supSaving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#4CC9F0', color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: supSaving ? .7 : 1 }}>
+                {supSaving ? '…' : 'Ajouter'}
               </button>
             </div>
           </form>
@@ -560,44 +524,100 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
       )}
 
       {/* ── Edit branch address modal ── */}
-      {editingBranch && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-          onClick={e => { if (e.target === e.currentTarget) closeBranchEdit() }}
-        >
-          <form
-            onSubmit={saveBranchAddress}
-            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '14px' }}
-          >
+      {editBranch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) closeEditBranch() }}>
+          <form onSubmit={saveBranchAddress}
+            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 700, color: '#e8e8f0' }}>
-                Adresse — {editingBranch.name}
-                <span style={{ fontSize: '13px', color: editingBranch.color, marginLeft: '8px' }}>({editingBranch.short_code})</span>
+                Adresse — {editBranch.name}
+                <span style={{ fontSize: '13px', color: editBranch.color, marginLeft: '8px' }}>({editBranch.short_code})</span>
               </h2>
               <p style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', marginTop: '4px' }}>
-                Entrez l'adresse complète pour géolocaliser la succursale sur la carte.
+                Entrez l'adresse complète. Sélectionnez une suggestion pour géolocaliser.
               </p>
             </div>
 
-            <AddressAutocomplete
-              label={branchGeo ? '✓ Adresse géolocalisée' : 'Adresse complète'}
-              value={branchAddr}
-              onChange={handleBranchAddressInput}
-              onSelect={selectBranchSuggestion}
-              suggestions={branchSuggestions}
-              geocoded={!!branchGeo}
+            <AddressField
+              label={editGeo ? '✓ Adresse géolocalisée' : 'Adresse complète'}
+              value={editAddr}
+              geocoded={!!editGeo}
+              suggestions={editAddrSearch.suggestions}
+              onChange={v => { setEditAddr(v); setEditGeo(null); editAddrSearch.search(v) }}
+              onSelect={item => { const g = editAddrSearch.pick(item); setEditGeo({ lat: g.lat, lng: g.lng }) }}
             />
 
-            {branchGeo && (
+            {editGeo && (
               <div style={{ fontSize: '11px', color: '#06D6A0', background: 'rgba(6,214,160,.06)', border: '1px solid rgba(6,214,160,.15)', borderRadius: '6px', padding: '6px 10px' }}>
-                ✓ Coordonnées : {branchGeo.lat.toFixed(5)}, {branchGeo.lng.toFixed(5)}
+                ✓ Coordonnées : {editGeo.lat.toFixed(5)}, {editGeo.lng.toFixed(5)}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" onClick={closeBranchEdit} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
-              <button type="submit" disabled={branchSaving || !branchAddr} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: editingBranch.color, color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: branchSaving || !branchAddr ? .5 : 1 }}>
-                {branchSaving ? '…' : 'Enregistrer'}
+              <button type="button" onClick={closeEditBranch} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+              <button type="submit" disabled={editSaving || !editAddr.trim()} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: editBranch.color, color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: editSaving || !editAddr.trim() ? .5 : 1 }}>
+                {editSaving ? '…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── New branch modal ── */}
+      {showNewBranch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) closeNewBranch() }}>
+          <form onSubmit={handleCreateBranch}
+            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 700, color: '#e8e8f0', marginBottom: '4px' }}>Nouvelle succursale</h2>
+
+            <input required placeholder="Nom de la ville *" value={newBranch.name} onChange={e => setNewBranch(f => ({ ...f, name: e.target.value }))} style={inp} />
+
+            <input
+              required maxLength={6} placeholder="Code court * (ex: SSM, SD, SL)"
+              value={newBranch.short_code}
+              onChange={e => setNewBranch(f => ({ ...f, short_code: e.target.value.toUpperCase() }))}
+              style={inp}
+            />
+
+            {/* Color picker */}
+            <div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginBottom: '6px' }}>Couleur</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {BRANCH_COLORS.map(c => (
+                  <button
+                    key={c} type="button"
+                    onClick={() => setNewBranch(f => ({ ...f, color: c }))}
+                    style={{
+                      width: '24px', height: '24px', borderRadius: '50%', background: c,
+                      border: `2px solid ${newBranch.color === c ? '#fff' : 'transparent'}`,
+                      cursor: 'pointer', padding: 0, outline: 'none',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <AddressField
+              label={newBranch.lat ? '✓ Adresse géolocalisée' : 'Adresse (optionnelle)'}
+              value={newBranch.address}
+              geocoded={!!newBranch.lat}
+              suggestions={newBranchAddr.suggestions}
+              onChange={v => { setNewBranch(f => ({ ...f, address: v, lat: null, lng: null })); newBranchAddr.search(v) }}
+              onSelect={item => { const g = newBranchAddr.pick(item); setNewBranch(f => ({ ...f, lat: g.lat, lng: g.lng })) }}
+            />
+
+            {newBranch.lat && newBranch.lng && (
+              <div style={{ fontSize: '11px', color: '#06D6A0', background: 'rgba(6,214,160,.06)', border: '1px solid rgba(6,214,160,.15)', borderRadius: '6px', padding: '6px 10px' }}>
+                ✓ Coordonnées : {newBranch.lat.toFixed(5)}, {newBranch.lng.toFixed(5)}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <button type="button" onClick={closeNewBranch} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+              <button type="submit" disabled={newBranchSaving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: newBranch.color, color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: newBranchSaving ? .7 : 1 }}>
+                {newBranchSaving ? '…' : 'Créer'}
               </button>
             </div>
           </form>

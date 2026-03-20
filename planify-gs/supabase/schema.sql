@@ -398,19 +398,23 @@ CREATE POLICY "settings_update_admin"
   USING (is_admin());
 
 -- ─── Seed: branches ────────────────────────────────────────
-INSERT INTO branches (id, name, short_code, color, address) VALUES
-  ('mtl',  'Montréal',                 'SSM', '#FF4D6D', ''),
-  ('lev',  'Lévis',                    'SQB', '#F77F00', ''),
-  ('drum', 'Drummondville',            'SD',  '#FCBF49', ''),
-  ('gat',  'Gatineau',                 'SG',  '#4CC9F0', ''),
-  ('ndp',  'Notre-Dame-des-Prairies',  'SLA', '#7B2FBE', ''),
-  ('jon',  'Jonquière',                'SSA', '#06D6A0', ''),
-  ('ryn',  'Rouyn-Noranda',            'SAI', '#EF233C', ''),
-  ('sca',  'Sainte-Catherine',         'SM',  '#3A86FF', ''),
-  ('sjr',  'Saint-Jérôme',             'SL',  '#FB5607', ''),
-  ('she',  'Sherbrooke',               'SE',  '#8338EC', ''),
-  ('tr',   'Trois-Rivières',           'SMA', '#06A77D', '')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO branches (id, name, short_code, color, address, lat, lng) VALUES
+  ('mtl',  'Montréal',                'SSM', '#FF4D6D', '',                                                           null,         null),
+  ('lev',  'Lévis',                   'SQB', '#F77F00', '44 Rue John-A.-Scott #101, Lévis, QC G6Z 8K7',               46.7124000,  -71.3750000),
+  ('drum', 'Drummondville',           'SD',  '#FCBF49', '1755 Rue Sigouin, Drummondville, QC J2C 5R7',                45.8700100,  -72.5225000),
+  ('gat',  'Gatineau',                'SG',  '#4CC9F0', '19 Rue de Varennes, Gatineau, QC J8T 8G7',                   45.4448000,  -75.7382000),
+  ('ndp',  'Notre-Dame-des-Prairies', 'SLA', '#7B2FBE', '193 Rue Joseph M. Parent, Notre-Dame-des-Prairies, QC J6E 0S1', 46.0539000, -73.4354000),
+  ('jon',  'Jonquière',               'SSA', '#06D6A0', '3235 Boulevard St François, Jonquière, QC G7T 1A1',          48.4059000,  -71.2498000),
+  ('ryn',  'Rouyn-Noranda',           'SAI', '#EF233C', '3674 Boul Rideau, Rouyn-Noranda, QC J0Z 1Y0',               48.2013000,  -79.0822000),
+  ('sca',  'Sainte-Catherine',        'SM',  '#3A86FF', '1629 Rue des Quais, Sainte-Catherine, QC J5C 1B9',           45.4026000,  -73.5791000),
+  ('sjr',  'Saint-Jérôme',            'SL',  '#FB5607', '',                                                           null,         null),
+  ('she',  'Sherbrooke',              'SE',  '#8338EC', '',                                                           null,         null),
+  ('tr',   'Trois-Rivières',          'SMA', '#06A77D', '',                                                           null,         null)
+ON CONFLICT (id) DO UPDATE SET
+  address = EXCLUDED.address,
+  lat     = EXCLUDED.lat,
+  lng     = EXCLUDED.lng
+WHERE EXCLUDED.address != '';
 
 -- ─── Seed: app_settings ────────────────────────────────────
 INSERT INTO app_settings (key, value) VALUES
