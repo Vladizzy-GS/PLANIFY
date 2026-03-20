@@ -343,11 +343,12 @@ function EventModal({
 
 // ─── Week View (time grid) ──────────────────────────────────────────────────────
 
-function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateClick }: {
+function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClick, onDateClick }: {
   wkStart: string
   showWeekends: boolean
   filter: string
   events: Event[]
+  branches: Branch[]
   onEventClick: (ev: Event) => void
   onDateClick: (date: string) => void
 }) {
@@ -388,8 +389,14 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
         {days.map(day => {
           const isToday = day === today
           const d = localDate(day)
+          // Collect unique branch short_codes for events on this day
+          const dayBranchIds = [...new Set(
+            events.filter(ev => eventVisibleOn(ev, day) && matchesFilter(ev))
+              .flatMap(ev => ev.branch_ids || [])
+          )]
+          const dayBranches = dayBranchIds.map(bid => branches.find(b => b.id === bid)).filter(Boolean) as Branch[]
           return (
-            <div key={day} style={{ padding: '10px 8px 8px', textAlign: 'center', background: isToday ? 'rgba(76,201,240,.05)' : 'transparent', borderLeft: '1px solid rgba(255,255,255,.05)' }}>
+            <div key={day} style={{ padding: '8px 8px 6px', textAlign: 'center', background: isToday ? 'rgba(76,201,240,.05)' : 'transparent', borderLeft: '1px solid rgba(255,255,255,.05)' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: isToday ? '#4CC9F0' : 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '4px' }}>
                 {shortDay(day)}
               </div>
@@ -403,6 +410,19 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
               }}>
                 {d.getDate()}
               </div>
+              {/* City / branch badges */}
+              {dayBranches.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px', marginTop: '4px' }}>
+                  {dayBranches.map(b => (
+                    <span key={b.id} style={{
+                      fontSize: '8px', fontWeight: 700,
+                      color: b.color, background: `${b.color}22`,
+                      border: `1px solid ${b.color}55`,
+                      borderRadius: '3px', padding: '0 3px', lineHeight: '14px',
+                    }}>{b.short_code}</span>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
@@ -417,8 +437,9 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
             <div key={day} onClick={() => onDateClick(day)} style={{ ...colStyle, padding: '4px 4px' }}>
               {allDayEvs.map(ev => (
                 <div key={ev.id} onClick={e => { e.stopPropagation(); onEventClick(ev) }}
-                  style={{ borderLeft: `3px solid ${ev.color}`, background: `${ev.color}22`, borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#e8e8f0', marginBottom: '2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', opacity: ev.done ? .5 : 1 }}>
-                  {ev.title}
+                  style={{ borderLeft: `3px solid ${ev.color}`, background: `${ev.color}22`, borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#e8e8f0', marginBottom: '2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', opacity: ev.done ? .5 : 1, display: 'flex', alignItems: 'center', gap: '4px', textDecoration: ev.done ? 'line-through' : 'none' }}>
+                  <span style={{ flexShrink: 0, color: ev.done ? '#06D6A0' : ev.color, fontSize: '12px' }}>{ev.done ? '☑' : '☐'}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
                 </div>
               ))}
             </div>
@@ -430,9 +451,9 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: `${TIME_COL}px repeat(${days.length}, 1fr)` }}>
 
-          {/* Time labels column */}
+          {/* Time labels column — +1 to include the end-hour label (e.g. 17h) */}
           <div>
-            {Array.from({ length: endHour - startHour }, (_, i) => (
+            {Array.from({ length: endHour - startHour + 1 }, (_, i) => (
               <div key={i} style={{ height: ROW_H, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: '8px', paddingTop: '4px' }}>
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,.25)', fontWeight: 600 }}>{formatHour(startHour + i)}</span>
               </div>
@@ -443,7 +464,7 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
           {days.map(day => {
             const isToday = day === today
             const timedEvs = events.filter(ev => !ev.all_day && eventVisibleOn(ev, day) && matchesFilter(ev))
-            const totalRows = endHour - startHour
+            const totalRows = endHour - startHour + 1  // +1 so the end-hour row is visible
 
             return (
               <div key={day} onClick={() => onDateClick(day)} style={{ ...colStyle, background: isToday ? 'rgba(76,201,240,.02)' : 'transparent', height: `${totalRows * ROW_H}px` }}>
@@ -470,8 +491,9 @@ function WeekView({ wkStart, showWeekends, filter, events, onEventClick, onDateC
                         cursor: 'pointer', zIndex: 1, opacity: ev.done ? .5 : 1,
                       }}
                     >
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: ev.color }}>{formatHour(ev.start_hour)}</div>
-                      <div style={{ fontSize: '12px', color: '#e8e8f0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textDecoration: ev.done ? 'line-through' : 'none' }}>{ev.title}</div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: ev.color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                        {ev.done ? '☑' : '☐'} {formatHour(ev.start_hour)}–{formatHour(ev.end_hour)} · {ev.title}
+                      </div>
                     </div>
                   )
                 })}
@@ -677,12 +699,17 @@ export default function ScheduleClient({
   const {
     calMode, wkStart, dayView, monView, showWeekends, schedFilter,
     setCalMode, setWkStart, setDayView, setMonView, toggleWeekends, setSchedFilter, goToToday,
+    setCalEvents, setBranches,
   } = useCalendarStore()
 
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
 
   const [events, setEvents] = useState<Event[]>(initialEvents)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // Sync events + branches to global store (for AppShell déplacements + progress)
+  useEffect(() => { setCalEvents(events) }, [events, setCalEvents])
+  useEffect(() => { if (branches.length) setBranches(branches) }, [branches, setBranches])
   const [editEvent, setEditEvent] = useState<Event | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerMonth, setPickerMonth] = useState(todayStr().substring(0, 8) + '01')
@@ -704,7 +731,8 @@ export default function ScheduleClient({
     if (calMode === 'week') {
       const wkEnd = addDays(wkStart, showWeekends ? 6 : 4)
       const d = localDate(wkStart)
-      return `${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
+      const wk = isoWeek(d)
+      return `Sem. ${wk} · ${d.getDate()} ${shortMonth(wkStart)} – ${localDate(wkEnd).getDate()} ${shortMonth(wkEnd)} ${d.getFullYear()}`
     }
     // month
     return `${fullMonth(monView)} ${localDate(monView).getFullYear()}`
@@ -877,7 +905,8 @@ export default function ScheduleClient({
         {calMode === 'week' && (
           <WeekView
             wkStart={wkStart} showWeekends={showWeekends} filter={schedFilter}
-            events={filteredEvents} onEventClick={openModal} onDateClick={handleDateClick}
+            events={filteredEvents} branches={branches}
+            onEventClick={openModal} onDateClick={handleDateClick}
           />
         )}
         {calMode === 'day' && (

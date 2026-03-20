@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
+import { useCalendarStore } from '@/stores/useCalendarStore'
+import { addDays, eventVisibleOn } from '@/lib/utils/dates'
 import type { UserRole } from '@/types/database'
 
 interface Employee {
@@ -14,11 +16,19 @@ interface Employee {
   avatar_gradient: string
 }
 
+interface BranchSimple {
+  id: string
+  name: string
+  short_code: string
+  color: string
+}
+
 interface Props {
   role: UserRole
   employeeId: string | null
   displayName: string | null
   employees: Employee[]
+  branches: BranchSimple[]
   alertCount: number
   taskCount: number
   adminCount: number
@@ -70,14 +80,35 @@ const NAV = [
   },
 ]
 
-export default function AppShell({ role, employeeId, employees, alertCount, taskCount, adminCount, children }: Props) {
+export default function AppShell({ role, employeeId, employees, branches, alertCount, taskCount, adminCount, children }: Props) {
   const setSession = useSessionStore(s => s.setSession)
   const setSelectedEmployee = useSessionStore(s => s.setSelectedEmployee)
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const pathname = usePathname()
   const router = useRouter()
-  const [lightMode, setLightMode] = useState(false)
   const isAdmin = role === 'admin'
+
+  // ─── Theme ──────────────────────────────────────────────────────────────────
+  const [isDark, setIsDark] = useState(true)
+  const [deplOpen, setDeplOpen] = useState(true)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('planify-theme')
+    if (saved === 'light') setIsDark(false)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('planify-theme', isDark ? 'dark' : 'light')
+  }, [isDark])
+
+  // ─── Calendar store (for déplacements + progress) ───────────────────────────
+  const { calMode, wkStart, dayView, monView, calEvents, setBranches } = useCalendarStore()
+
+  // Sync branches to store (using full branch type via cast — layout fetches minimal fields)
+  useEffect(() => {
+    if (branches.length > 0) setBranches(branches as Parameters<typeof setBranches>[0])
+  }, [branches, setBranches])
 
   useEffect(() => {
     setSession(role, employeeId)
@@ -93,12 +124,73 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     setSelectedEmployee(id)
   }
 
+  // ─── Week progress % ────────────────────────────────────────────────────────
+  const weekProgress = useMemo(() => {
+    if (!calEvents.length) return 0
+    const viewEmpId = isAdmin ? selectedEmployeeId : employeeId
+    const empEvents = viewEmpId
+      ? calEvents.filter(ev => ev.employee_id === viewEmpId)
+      : calEvents
+    const wkDays = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i))
+    const weekEvents = empEvents.filter(ev => wkDays.some(d => eventVisibleOn(ev, d)))
+    if (!weekEvents.length) return 0
+    const done = weekEvents.filter(ev => ev.done).length
+    return Math.round((done / weekEvents.length) * 100)
+  }, [calEvents, selectedEmployeeId, employeeId, isAdmin, wkStart])
+
+  // ─── Déplacements ───────────────────────────────────────────────────────────
+  const deplLabel = calMode === 'day' ? 'JOUR' : calMode === 'month' ? 'MOIS' : 'SEM'
+
+  const deplEvents = useMemo(() => {
+    if (!calEvents.length) return []
+    const viewEmpId = isAdmin ? selectedEmployeeId : employeeId
+    const empEvents = viewEmpId
+      ? calEvents.filter(ev => ev.employee_id === viewEmpId)
+      : calEvents
+
+    let dateRange: string[] = []
+    if (calMode === 'day') {
+      dateRange = [dayView]
+    } else if (calMode === 'week') {
+      dateRange = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i))
+    } else {
+      // month: all days of the month
+      const year = parseInt(monView.substring(0, 4))
+      const month = parseInt(monView.substring(5, 7))
+      const daysInMonth = new Date(year, month, 0).getDate()
+      dateRange = Array.from({ length: daysInMonth }, (_, i) => {
+        const d = new Date(year, month - 1, i + 1)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      })
+    }
+
+    // Events with branches visible in the period (deduplicated by event id)
+    const seen = new Set<string>()
+    const result: { ev: typeof empEvents[0]; date: string; branchCodes: { code: string; color: string }[] }[] = []
+
+    for (const date of dateRange) {
+      for (const ev of empEvents) {
+        if (seen.has(ev.id)) continue
+        if (!(ev.branch_ids?.length > 0)) continue
+        if (!eventVisibleOn(ev, date)) continue
+        seen.add(ev.id)
+        const branchCodes = (ev.branch_ids || []).map(bid => {
+          const b = branches.find(br => br.id === bid)
+          return b ? { code: b.short_code, color: b.color } : null
+        }).filter(Boolean) as { code: string; color: string }[]
+        result.push({ ev, date, branchCodes })
+      }
+    }
+    return result
+  }, [calEvents, calMode, wkStart, dayView, monView, selectedEmployeeId, employeeId, isAdmin, branches])
+
+  // ─── Styles ─────────────────────────────────────────────────────────────────
   const s = {
     sidebar: {
       width: '210px',
       minWidth: '210px',
-      background: 'rgba(255,255,255,.02)',
-      borderRight: '1px solid rgba(255,255,255,.06)',
+      background: 'var(--bg-panel)',
+      borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
       flexDirection: 'column' as const,
       padding: '0',
@@ -110,7 +202,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     },
     brand: {
       padding: '18px 16px 12px',
-      borderBottom: '1px solid rgba(255,255,255,.06)',
+      borderBottom: '1px solid var(--border-subtle)',
     },
     brandLabel: {
       fontSize: '9px',
@@ -123,7 +215,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     brandTitle: {
       fontSize: '20px',
       fontWeight: 800,
-      color: '#e8e8f0',
+      color: 'var(--text-primary)',
       fontFamily: 'var(--font-syne, sans-serif)',
       lineHeight: 1,
       display: 'flex',
@@ -137,7 +229,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       fontSize: '10px',
       fontWeight: 700,
       letterSpacing: '0.1em',
-      color: 'rgba(255,255,255,.28)',
+      color: 'var(--text-muted)',
       textTransform: 'uppercase' as const,
       marginBottom: '6px',
       display: 'flex',
@@ -164,9 +256,9 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     quitBtn: {
       fontSize: '11px',
       fontWeight: 600,
-      color: 'rgba(255,255,255,.4)',
-      background: 'rgba(255,255,255,.07)',
-      border: '1px solid rgba(255,255,255,.1)',
+      color: 'var(--text-secondary)',
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border-normal)',
       borderRadius: '6px',
       padding: '2px 8px',
       cursor: 'pointer',
@@ -178,8 +270,8 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       padding: '6px 8px',
       borderRadius: '10px',
       cursor: 'pointer',
-      background: active ? 'rgba(255,255,255,.06)' : 'transparent',
-      border: active ? '1px solid rgba(255,255,255,.1)' : '1px solid transparent',
+      background: active ? 'var(--bg-card)' : 'transparent',
+      border: active ? '1px solid var(--border-normal)' : '1px solid transparent',
       marginBottom: '2px',
     }),
     avatar: (gradient: string) => ({
@@ -198,7 +290,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     empName: {
       fontSize: '13px',
       fontWeight: 600,
-      color: '#e8e8f0',
+      color: 'var(--text-primary)',
       lineHeight: 1.2,
     },
     empStatus: {
@@ -207,18 +299,18 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     },
     progressRow: {
       padding: '4px 16px 10px',
-      borderBottom: '1px solid rgba(255,255,255,.06)',
+      borderBottom: '1px solid var(--border-subtle)',
     },
     progressLabel: {
       display: 'flex',
       justifyContent: 'space-between',
       fontSize: '11px',
-      color: 'rgba(255,255,255,.35)',
+      color: 'var(--text-muted)',
       marginBottom: '4px',
     },
     progressBar: {
       height: '3px',
-      background: 'rgba(255,255,255,.08)',
+      background: 'var(--bg-hover)',
       borderRadius: '2px',
       overflow: 'hidden',
     },
@@ -234,7 +326,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       padding: '8px 10px',
       borderRadius: '10px',
       textDecoration: 'none',
-      color: active ? '#e8e8f0' : 'rgba(255,255,255,.45)',
+      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
       background: active ? 'rgba(255,77,109,.13)' : 'transparent',
       border: active ? '1px solid rgba(255,77,109,.22)' : '1px solid transparent',
       marginBottom: '2px',
@@ -244,7 +336,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       position: 'relative' as const,
     }),
     navIcon: (active: boolean) => ({
-      color: active ? '#FF4D6D' : 'rgba(255,255,255,.4)',
+      color: active ? '#FF4D6D' : 'var(--text-muted)',
       flexShrink: 0,
     }),
     badge: (color = '#FF4D6D') => ({
@@ -268,7 +360,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       padding: '8px 10px',
       borderRadius: '10px',
       textDecoration: 'none',
-      color: active ? '#FFB703' : 'rgba(255,255,255,.45)',
+      color: active ? '#FFB703' : 'var(--text-secondary)',
       background: active ? 'rgba(255,183,3,.1)' : 'transparent',
       border: active ? '1px solid rgba(255,183,3,.2)' : '1px solid transparent',
       marginBottom: '2px',
@@ -278,16 +370,16 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
     }),
     divider: {
       height: '1px',
-      background: 'rgba(255,255,255,.06)',
+      background: 'var(--border-subtle)',
       margin: '6px 10px',
     },
     bottomSection: {
       padding: '8px 10px',
-      borderTop: '1px solid rgba(255,255,255,.06)',
+      borderTop: '1px solid var(--border-subtle)',
     },
     deplSection: {
-      padding: '6px 10px 4px',
-      borderTop: '1px solid rgba(255,255,255,.06)',
+      padding: '4px 10px',
+      borderTop: '1px solid var(--border-subtle)',
     },
     deplLabel: {
       display: 'flex',
@@ -296,9 +388,10 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       fontSize: '10px',
       fontWeight: 700,
       letterSpacing: '0.1em',
-      color: 'rgba(255,255,255,.28)',
+      color: 'var(--text-muted)',
       textTransform: 'uppercase' as const,
       padding: '4px 0',
+      cursor: 'pointer',
     },
     deplBadge: {
       fontSize: '9px',
@@ -309,24 +402,26 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
       borderRadius: '4px',
       padding: '1px 5px',
     },
-    lightBtn: {
+    lightBtn: (dark: boolean) => ({
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
       padding: '8px 10px',
       borderRadius: '10px',
       cursor: 'pointer',
-      background: 'transparent',
-      border: '1px solid transparent',
-      color: 'rgba(255,255,255,.45)',
+      background: dark ? 'transparent' : 'rgba(255,255,255,.9)',
+      border: dark ? '1px solid var(--border-subtle)' : '1px solid rgba(0,0,0,.15)',
+      color: dark ? 'var(--text-secondary)' : '#0d0d1a',
       fontSize: '13px',
       width: '100%',
       textAlign: 'left' as const,
-    },
+      fontWeight: 500,
+      transition: 'all .15s',
+    }),
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a12' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {/* Sidebar */}
       <aside style={s.sidebar}>
         {/* Branding */}
@@ -334,8 +429,8 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
           <div style={s.brandLabel}>Gestion Équipe</div>
           <div style={s.brandTitle}>
             <span>Planify</span>
-            <span style={{ color: 'rgba(255,255,255,.35)', fontWeight: 400 }}>·</span>
-            <span style={{ color: 'rgba(255,255,255,.5)', fontWeight: 600, fontSize: '18px' }}>GS</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>·</span>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '18px' }}>GS</span>
           </div>
         </div>
 
@@ -359,9 +454,9 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
             {isAdmin && (
               <div style={{
                 width: '18px', height: '18px', borderRadius: '6px',
-                background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)',
+                background: 'var(--bg-hover)', border: '1px solid var(--border-normal)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                color: 'rgba(255,255,255,.5)', fontSize: '14px', lineHeight: 1,
+                color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1,
               }}>+</div>
             )}
           </div>
@@ -377,7 +472,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
                 <div style={s.empStatus}>En ligne</div>
               </div>
               {isAdmin && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
               )}
@@ -389,10 +484,10 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
         <div style={s.progressRow}>
           <div style={s.progressLabel}>
             <span>Semaine</span>
-            <span style={{ color: '#FF4D6D', fontWeight: 700 }}>0%</span>
+            <span style={{ color: '#FF4D6D', fontWeight: 700 }}>{weekProgress}%</span>
           </div>
           <div style={s.progressBar}>
-            <div style={{ width: '0%', height: '100%', background: '#FF4D6D', borderRadius: '2px' }} />
+            <div style={{ width: `${weekProgress}%`, height: '100%', background: '#FF4D6D', borderRadius: '2px', transition: 'width .4s ease' }} />
           </div>
         </div>
 
@@ -414,7 +509,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
             <>
               <div style={s.divider} />
               <Link href="/admin/dashboard" style={s.adminNavItem(pathname.startsWith('/admin'))}>
-                <span style={{ color: pathname.startsWith('/admin') ? '#FFB703' : 'rgba(255,255,255,.4)', flexShrink: 0 }}>
+                <span style={{ color: pathname.startsWith('/admin') ? '#FFB703' : 'var(--text-muted)', flexShrink: 0 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                   </svg>
@@ -430,7 +525,7 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
             <span style={s.navIcon(pathname === '/settings')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
             </span>
             Paramètres
@@ -439,28 +534,64 @@ export default function AppShell({ role, employeeId, employees, alertCount, task
 
         {/* Déplacements */}
         <div style={s.deplSection}>
-          <div style={s.deplLabel}>
-            <span>▾ Déplacements</span>
-            <span style={s.deplBadge}>SEM</span>
+          <div style={s.deplLabel} onClick={() => setDeplOpen(v => !v)}>
+            <span>{deplOpen ? '▾' : '▸'} Déplacements</span>
+            <span style={s.deplBadge}>{deplLabel}</span>
           </div>
+          {deplOpen && deplEvents.length > 0 && (
+            <div style={{ paddingBottom: '4px' }}>
+              {deplEvents.map(({ ev, date, branchCodes }) => {
+                const d = new Date(date + 'T00:00:00')
+                const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+                const dayLabel = `${dayNames[d.getDay()]} ${d.getDate()}`
+                return (
+                  <div key={ev.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    padding: '3px 2px',
+                    fontSize: '10px', color: 'var(--text-secondary)',
+                    borderBottom: '1px solid var(--border-subtle)',
+                  }}>
+                    <span style={{ color: 'var(--text-muted)', minWidth: '36px', flexShrink: 0 }}>{dayLabel}</span>
+                    <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                    <span style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                      {branchCodes.map(bc => (
+                        <span key={bc.code} style={{
+                          fontSize: '8px', fontWeight: 700,
+                          color: bc.color,
+                          background: `${bc.color}22`,
+                          border: `1px solid ${bc.color}55`,
+                          borderRadius: '3px', padding: '0 3px',
+                        }}>{bc.code}</span>
+                      ))}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {deplOpen && deplEvents.length === 0 && (
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', padding: '4px 2px 6px', fontStyle: 'italic' }}>
+              Aucun déplacement
+            </div>
+          )}
         </div>
 
-        {/* Mode clair */}
+        {/* Mode clair / sombre */}
         <div style={s.bottomSection}>
-          <button style={s.lightBtn} onClick={() => setLightMode(v => !v)}>
+          <button style={s.lightBtn(isDark)} onClick={() => setIsDark(v => !v)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {lightMode
-                ? <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>
-                : <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
+              {isDark
+                ? <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
+                : <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>
               }
             </svg>
-            Mode clair
+            {isDark ? 'Mode clair' : 'Mode sombre'}
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto', minHeight: '100vh' }}>
+      <main style={{ flex: 1, overflow: 'auto', minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         {children}
       </main>
     </div>
