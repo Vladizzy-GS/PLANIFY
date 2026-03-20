@@ -18,7 +18,7 @@ export default async function MapPage() {
 
   return (
     <MapClient
-      initialSuppliers={(suppliersRes.data ?? []) as Parameters<typeof MapClient>[0]['initialSuppliers']}
+      initialSuppliers={(suppliersRes.data ?? []) as unknown as Parameters<typeof MapClient>[0]['initialSuppliers']}
       branches={(branchesRes.data ?? []) as Parameters<typeof MapClient>[0]['branches']}
       isAdmin={profile?.role === 'admin'}
     />

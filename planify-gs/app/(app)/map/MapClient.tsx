@@ -17,7 +17,7 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
 type Supplier = {
   id: string; name: string; category: string; city: string | null
   phone: string | null; email: string | null; address: string | null
-  lat: number | null; lng: number | null
+  notes: string | null; lat: number | null; lng: number | null
 }
 type Branch = {
   id: string; name: string; short_code: string; color: string
@@ -57,8 +57,10 @@ const BRANCH_COLORS = [
   '#06A77D', '#FF006E',
 ]
 
-const EMPTY_SUP: { name: string; category: string; city: string; phone: string; email: string; address: string; lat: number | null; lng: number | null } = {
-  name: '', category: SUP_CATS[0], city: '', phone: '', email: '', address: '', lat: null, lng: null,
+type SupForm = { name: string; category: string; city: string; phone: string; email: string; address: string; notes: string; lat: number | null; lng: number | null }
+const EMPTY_SUP: SupForm = {
+  name: '', category: SUP_CATS[0], city: '', phone: '', email: '',
+  address: '', notes: '', lat: null, lng: null,
 }
 
 const EMPTY_NEW_BRANCH = {
@@ -180,12 +182,19 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
   const [flyCmd, setFlyCmd] = useState<{ coords: [number, number]; key: number } | null>(null)
+  const [resetViewKey, setResetViewKey] = useState(0)
 
-  // ── Supplier modal ──────────────────────────────────────
+  // ── Add supplier modal ──────────────────────────────────
   const [showSupModal, setShowSupModal] = useState(false)
-  const [supForm, setSupForm] = useState({ ...EMPTY_SUP })
+  const [supForm, setSupForm] = useState<SupForm>({ ...EMPTY_SUP })
   const [supSaving, setSupSaving] = useState(false)
   const supAddr = useAddressSearch()
+
+  // ── Edit supplier modal ─────────────────────────────────
+  const [editSup, setEditSup] = useState<Supplier | null>(null)
+  const [editSupForm, setEditSupForm] = useState<SupForm>({ ...EMPTY_SUP })
+  const [editSupSaving, setEditSupSaving] = useState(false)
+  const editSupAddr = useAddressSearch()
 
   // ── Branch address edit modal ───────────────────────────
   const [editBranch, setEditBranch] = useState<Branch | null>(null)
@@ -215,16 +224,21 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   function fly(coords: [number, number]) { setFlyCmd({ coords, key: Date.now() }) }
 
   function handleSelectSupplier(id: string) {
-    const next = id === selectedId ? null : id
+    const deselecting = id === selectedId
+    const next = deselecting ? null : id
     setSelectedId(next)
     if (next) {
       const s = suppliers.find(x => x.id === next)
       if (s?.lat && s?.lng) fly([Number(s.lat), Number(s.lng)])
+    } else {
+      setResetViewKey(k => k + 1)
     }
   }
 
   function handleBranchClick(id: string) {
-    setSelectedBranchId(prev => prev === id ? null : id)
+    const deselecting = selectedBranchId === id
+    setSelectedBranchId(deselecting ? null : id)
+    if (deselecting) { setResetViewKey(k => k + 1); return }
     const b = branches.find(x => x.id === id)
     if (!b) return
     const coords = getBranchCoords(b)
@@ -258,6 +272,43 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
     await supabase.from('suppliers').delete().eq('id', id)
     setSuppliers(prev => prev.filter(s => s.id !== id))
     if (selectedId === id) setSelectedId(null)
+  }
+
+  function openEditSup(s: Supplier) {
+    setEditSup(s)
+    setEditSupForm({
+      name: s.name, category: s.category, city: s.city ?? '',
+      phone: s.phone ?? '', email: s.email ?? '',
+      address: s.address ?? '', notes: s.notes ?? '',
+      lat: s.lat, lng: s.lng,
+    })
+    editSupAddr.reset()
+  }
+
+  function closeEditSup() { setEditSup(null); editSupAddr.reset() }
+
+  async function saveEditSup(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editSup) return
+    setEditSupSaving(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).from('suppliers').update({
+      name: editSupForm.name,
+      category: editSupForm.category,
+      city: editSupForm.city || null,
+      phone: editSupForm.phone || null,
+      email: editSupForm.email || null,
+      address: editSupForm.address || null,
+      notes: editSupForm.notes || null,
+      lat: editSupForm.lat ?? null,
+      lng: editSupForm.lng ?? null,
+    }).eq('id', editSup.id).select().single()
+    if (!error && data) {
+      setSuppliers(prev => prev.map(s => s.id === editSup.id ? data as Supplier : s))
+      if (editSupForm.lat && editSupForm.lng) fly([editSupForm.lat, editSupForm.lng])
+    }
+    setEditSupSaving(false)
+    closeEditSup()
   }
 
   // ── Branch address edit ──────────────────────────────────
@@ -354,6 +405,7 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
               selectedSupplierId={selectedId}
               selectedBranchId={selectedBranchId}
               flyCmd={flyCmd}
+              resetViewKey={resetViewKey}
               onBranchClick={handleBranchClick}
             />
           </div>
@@ -460,14 +512,24 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
                   </div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.4)', marginLeft: '13px' }}>{s.category}</div>
                   {s.city && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginLeft: '13px' }}>{s.city}</div>}
-                  {!s.lat && <div style={{ fontSize: '10px', color: 'rgba(255,165,0,.5)', marginLeft: '13px', marginTop: '2px' }}>Non géolocalisé</div>}
+                  {s.phone && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.25)', marginLeft: '13px' }}>{s.phone}</div>}
+                  {s.notes && <div style={{ fontSize: '10px', color: 'rgba(76,201,240,.5)', marginLeft: '13px', marginTop: '1px', fontStyle: 'italic' }}>{s.notes}</div>}
                 </div>
-                {isAdmin && (
-                  <button
-                    onClick={e => { e.stopPropagation(); handleDeleteSup(s.id) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.2)', fontSize: '16px', padding: '0 2px', flexShrink: 0, lineHeight: 1 }}
-                  >×</button>
-                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                  {isAdmin && (
+                    <button
+                      onClick={e => { e.stopPropagation(); openEditSup(s) }}
+                      title="Modifier"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.25)', fontSize: '13px', padding: '0 2px', lineHeight: 1 }}
+                    >✏</button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDeleteSup(s.id) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.2)', fontSize: '16px', padding: '0 2px', lineHeight: 1 }}
+                    >×</button>
+                  )}
+                </div>
               </div>
             ))}
             {filtered.length === 0 && (
@@ -517,6 +579,57 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
               <button type="button" onClick={() => { setShowSupModal(false); setSupForm({ ...EMPTY_SUP }); supAddr.reset() }} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
               <button type="submit" disabled={supSaving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#4CC9F0', color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: supSaving ? .7 : 1 }}>
                 {supSaving ? '…' : 'Ajouter'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Edit supplier modal ── */}
+      {editSup && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) closeEditSup() }}>
+          <form onSubmit={saveEditSup}
+            style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '24px', width: '460px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 700, color: '#e8e8f0', marginBottom: '4px' }}>
+              Modifier — {editSup.name}
+            </h2>
+
+            <input required placeholder="Nom *" value={editSupForm.name} onChange={e => setEditSupForm(f => ({ ...f, name: e.target.value }))} style={inp} />
+            <select value={editSupForm.category} onChange={e => setEditSupForm(f => ({ ...f, category: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
+              {SUP_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input placeholder="Téléphone" value={editSupForm.phone} onChange={e => setEditSupForm(f => ({ ...f, phone: e.target.value }))} style={inp} />
+            <input placeholder="Courriel" type="email" value={editSupForm.email} onChange={e => setEditSupForm(f => ({ ...f, email: e.target.value }))} style={inp} />
+
+            <AddressField
+              label={editSupForm.lat ? '✓ Adresse géolocalisée' : 'Adresse'}
+              value={editSupForm.address}
+              geocoded={!!editSupForm.lat}
+              suggestions={editSupAddr.suggestions}
+              onChange={v => { setEditSupForm(f => ({ ...f, address: v, lat: null, lng: null })); editSupAddr.search(v) }}
+              onSelect={item => { const g = editSupAddr.pick(item); setEditSupForm(f => ({ ...f, city: g.city || f.city, lat: g.lat, lng: g.lng })) }}
+            />
+            <input placeholder="Ville" value={editSupForm.city} onChange={e => setEditSupForm(f => ({ ...f, city: e.target.value }))} style={inp} />
+
+            <textarea
+              placeholder="Notes / Contact (ex: Contacter Vlad avant d'appeler)"
+              value={editSupForm.notes}
+              onChange={e => setEditSupForm(f => ({ ...f, notes: e.target.value }))}
+              rows={3}
+              style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+
+            {editSupForm.lat && editSupForm.lng && (
+              <div style={{ fontSize: '11px', color: '#06D6A0', background: 'rgba(6,214,160,.06)', border: '1px solid rgba(6,214,160,.15)', borderRadius: '6px', padding: '6px 10px' }}>
+                ✓ {editSupForm.lat.toFixed(5)}, {editSupForm.lng.toFixed(5)}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <button type="button" onClick={closeEditSup} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.6)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+              <button type="submit" disabled={editSupSaving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#4CC9F0', color: '#0a0a12', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: editSupSaving ? .7 : 1 }}>
+                {editSupSaving ? '…' : 'Enregistrer'}
               </button>
             </div>
           </form>
