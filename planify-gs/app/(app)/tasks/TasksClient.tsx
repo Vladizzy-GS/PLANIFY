@@ -237,8 +237,6 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
         color: form.color,
         priority_level: form.priority_level,
         status: 'À faire' as const,
-        start_date: form.start_date,
-        end_date: endDate,
         due_date: endDate,
         linked_event_id: data.id,
         rank: 0,
@@ -294,7 +292,7 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={lbl}>Date début *</label>
-              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inp} />
+              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value, end_date: e.target.value >= f.end_date ? e.target.value : f.end_date }))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Date fin</label>

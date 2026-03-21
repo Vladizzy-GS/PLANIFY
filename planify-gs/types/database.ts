@@ -178,7 +178,7 @@ export type EventInsert = Omit<Event, 'id' | 'created_at' | 'updated_at' | 'assi
   branch_ids?: string[]
   done?: boolean
 }
-export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' | 'locked' | 'linked_event_id' | 'branch_ids'> & {
+export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' | 'locked' | 'linked_event_id' | 'branch_ids' | 'start_date' | 'end_date'> & {
   id?: string
   rank?: number
   description?: string
