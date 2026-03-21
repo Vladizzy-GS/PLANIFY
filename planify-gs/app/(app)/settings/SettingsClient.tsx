@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ConfirmModal from '@/app/components/ConfirmModal'
 
 type Employee = {
   id: string; name: string; initials: string; email: string | null; phone: string | null
@@ -47,6 +48,13 @@ export default function SettingsClient({
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState('')
 
+  // Confirm modal state
+  const [confirm, setConfirm] = useState<{ open: boolean; message: string; detail?: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} })
+  function askConfirm(message: string, detail: string, onConfirm: () => void) {
+    setConfirm({ open: true, message, detail, onConfirm })
+  }
+  function closeConfirm() { setConfirm(c => ({ ...c, open: false })) }
+
   function openAdd() { setEditing(null); setForm({ ...EMPTY_EMP }); setErr(''); setShowModal(true) }
   function openEdit(emp: Employee) {
     setEditing(emp)
@@ -73,10 +81,11 @@ export default function SettingsClient({
     setSaving(false)
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Supprimer cet employé ? Cette action est irréversible.')) return
-    const res = await fetch('/api/admin/employees', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    if (res.ok) setEmployees(prev => prev.filter(e => e.id !== id))
+  function handleDelete(id: string) {
+    askConfirm('Supprimer cet employé ?', 'Cette action est irréversible.', async () => {
+      const res = await fetch('/api/admin/employees', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      if (res.ok) setEmployees(prev => prev.filter(e => e.id !== id))
+    })
   }
 
   async function handleToggle(emp: Employee) {
@@ -93,9 +102,7 @@ export default function SettingsClient({
     setTimeout(() => setPinSaved(false), 2000)
   }
 
-  async function handleReset(type: 'events' | 'all') {
-    const label = type === 'all' ? 'TOUTES les données (événements, priorités, alertes, fournisseurs)' : 'tous les événements'
-    if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return
+  async function doReset(type: 'events' | 'all') {
     setResetting(true)
     const res = await fetch('/api/admin/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type }) })
     if (res.ok) {
@@ -237,7 +244,7 @@ export default function SettingsClient({
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Supprimer tous les événements</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Efface le planning de tous les employés.</div>
                 </div>
-                <button onClick={() => handleReset('events')} disabled={resetting} style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                <button onClick={() => askConfirm('Supprimer tous les événements ?', 'Cette action est irréversible.', () => doReset('events'))} disabled={resetting} style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
                   Réinitialiser
                 </button>
               </div>
@@ -247,7 +254,7 @@ export default function SettingsClient({
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Réinitialisation complète</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Supprime événements, priorités, alertes et fournisseurs.</div>
                 </div>
-                <button onClick={() => handleReset('all')} disabled={resetting} style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.1)', color: '#FF4D6D', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                <button onClick={() => askConfirm('Supprimer TOUTES les données ?', 'Événements, priorités, alertes et fournisseurs. Irréversible.', () => doReset('all'))} disabled={resetting} style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.1)', color: '#FF4D6D', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
                   Tout effacer
                 </button>
               </div>
@@ -288,6 +295,7 @@ export default function SettingsClient({
           </form>
         </div>
       )}
+      <ConfirmModal open={confirm.open} message={confirm.message} detail={confirm.detail} confirmLabel="Supprimer" danger onConfirm={confirm.onConfirm} onCancel={closeConfirm} />
     </div>
   )
 }

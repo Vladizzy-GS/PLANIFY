@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { useSessionStore } from '@/stores/useSessionStore'
 import { todayStr, localDate } from '@/lib/utils/dates'
 import type { Alert, Employee } from '@/types/database'
@@ -252,6 +253,7 @@ function AlertCard({ alert, onDelete, onMarkRead }: {
 }) {
   const supabase = createClient()
   const isAdmin = useSessionStore(s => s.isAdmin)
+  const [confirmDel, setConfirmDel] = useState(false)
   const tc = alertSeverityColor(alert.alert_type)
   // Parse comma-separated categories
   const catList = (alert.category ?? '').split(',').map(s => s.trim()).filter(Boolean).map(c => categoryMeta(c)).filter(Boolean) as { color: string; label: string }[]
@@ -267,8 +269,7 @@ function AlertCard({ alert, onDelete, onMarkRead }: {
     onMarkRead(alert.id)
   }
 
-  async function del() {
-    if (!confirm('Supprimer cette alerte ?')) return
+  async function doDel() {
     await supabase.from('alerts').delete().eq('id', alert.id)
     onDelete(alert.id)
   }
@@ -320,10 +321,11 @@ function AlertCard({ alert, onDelete, onMarkRead }: {
             <button onClick={markRead} title="Marquer comme lu" style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✓</button>
           )}
           {(!alert.is_system || isAdmin) && (
-            <button onClick={del} title="Supprimer" style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,77,109,.2)', background: 'transparent', color: 'rgba(255,77,109,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✕</button>
+            <button onClick={() => setConfirmDel(true)} title="Supprimer" style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,77,109,.2)', background: 'transparent', color: 'rgba(255,77,109,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✕</button>
           )}
         </div>
       </div>
+      <ConfirmModal open={confirmDel} message="Supprimer cette alerte ?" confirmLabel="Supprimer" danger onConfirm={doDel} onCancel={() => setConfirmDel(false)} />
     </div>
   )
 }

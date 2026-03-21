@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { useCalendarStore } from '@/stores/useCalendarStore'
 import { useSessionStore } from '@/stores/useSessionStore'
 import {
@@ -58,6 +59,7 @@ function EventModal({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [err, setErr] = useState('')
+  const [confirmDel, setConfirmDel] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -153,9 +155,8 @@ function EventModal({
     onClose()
   }
 
-  async function handleDelete() {
+  async function doDelete() {
     if (!event) return
-    if (!confirm('Supprimer cet événement ?')) return
     setDeleting(true)
     await supabase.from('events').delete().eq('id', event.id)
     onDeleted(event.id)
@@ -355,7 +356,7 @@ function EventModal({
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
             {event && (
               <button
-                onClick={handleDelete} disabled={deleting}
+                onClick={() => setConfirmDel(true)} disabled={deleting}
                 style={{ padding: '11px 18px', borderRadius: '10px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
               >
                 {deleting ? '…' : 'Supprimer'}
@@ -370,6 +371,7 @@ function EventModal({
           </div>
         </div>
       </div>
+      <ConfirmModal open={confirmDel} message="Supprimer cet événement ?" confirmLabel="Supprimer" danger onConfirm={doDelete} onCancel={() => setConfirmDel(false)} />
     </div>
   )
 }

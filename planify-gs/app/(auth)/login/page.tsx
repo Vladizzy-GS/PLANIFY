@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [regPass, setRegPass] = useState('')
   const [regPass2, setRegPass2] = useState('')
   const [regErr, setRegErr] = useState('')
+  const [regOk, setRegOk] = useState('')
 
   async function handleGoogleLogin() {
     setLoading(true)
@@ -81,8 +82,8 @@ export default function LoginPage() {
       setRegErr('Un compte existe déjà avec ce courriel. Veuillez vous connecter ou réinitialiser votre mot de passe.')
     } else {
       setRegErr('')
-      alert('Compte créé. Vérifiez votre courriel pour confirmer.')
-      setTab('login')
+      setRegOk('Compte créé ! Vérifiez votre courriel pour confirmer votre adresse.')
+      setTimeout(() => { setRegOk(''); setTab('login') }, 3500)
     }
     setLoading(false)
   }
@@ -288,6 +289,7 @@ export default function LoginPage() {
               </div>
             </div>
             {regErr && <div style={{ fontSize: '13px', color: '#FF4D6D', marginBottom: '12px', textAlign: 'center' }}>{regErr}</div>}
+            {regOk && <div style={{ fontSize: '13px', color: '#06D6A0', marginBottom: '12px', textAlign: 'center', padding: '10px 14px', background: 'rgba(6,214,160,.1)', borderRadius: '8px', border: '1px solid rgba(6,214,160,.25)' }}>{regOk}</div>}
             <button
               type="submit"
               disabled={loading}

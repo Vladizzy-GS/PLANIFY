@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ConfirmModal from '@/app/components/ConfirmModal'
 import { useSessionStore } from '@/stores/useSessionStore'
 import { localDate, todayStr } from '@/lib/utils/dates'
 import type { Priority, PriorityPart, Branch, Event } from '@/types/database'
@@ -57,6 +58,7 @@ function PriorityModal({
   const [newPart, setNewPart] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [confirmDel, setConfirmDel] = useState(false)
   // "From event" tab
   const [selectedEventId, setSelectedEventId] = useState('')
 
@@ -179,9 +181,8 @@ function PriorityModal({
     onClose()
   }
 
-  async function handleDelete() {
+  async function doDelete() {
     if (!priority) return
-    if (!confirm('Supprimer cette priorité ?')) return
     await supabase.from('priorities').delete().eq('id', priority.id)
     onDeleted(priority.id)
     onClose()
@@ -407,7 +408,7 @@ function PriorityModal({
           {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
             {priority && (
-              <button onClick={handleDelete} style={{ padding: '11px 18px', borderRadius: '10px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => setConfirmDel(true)} style={{ padding: '11px 18px', borderRadius: '10px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
                 Supprimer
               </button>
             )}
@@ -417,6 +418,7 @@ function PriorityModal({
           </div>
         </div>
       </div>
+      <ConfirmModal open={confirmDel} message="Supprimer cette priorité ?" confirmLabel="Supprimer" danger onConfirm={doDelete} onCancel={() => setConfirmDel(false)} />
     </div>
   )
 }
