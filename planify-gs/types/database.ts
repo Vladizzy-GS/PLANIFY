@@ -71,6 +71,9 @@ export type Priority = {
   priority_level: 'Faible' | 'Moyen' | 'Élevé'
   status: 'À faire' | 'En cours' | 'En révision' | 'Terminé' | 'Bloqué'
   due_date: string | null
+  start_date: string | null
+  end_date: string | null
+  branch_ids: string[]
   locked: boolean
   notes: string
   linked_event_id: string | null
@@ -182,6 +185,9 @@ export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' |
   priority_level?: Priority['priority_level']
   status?: Priority['status']
   due_date?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  branch_ids?: string[]
   locked?: boolean
   notes?: string
   linked_event_id?: string | null

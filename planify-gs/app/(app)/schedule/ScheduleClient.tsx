@@ -140,7 +140,10 @@ function EventModal({
           status: 'À faire' as const,
           rank: nextRank,
           notes: '',
-          due_date: null,
+          due_date: savedEvent.end_date,
+          start_date: savedEvent.start_date,
+          end_date: savedEvent.end_date,
+          branch_ids: savedEvent.branch_ids ?? [],
           linked_event_id: savedEvent.id,
         })
       }

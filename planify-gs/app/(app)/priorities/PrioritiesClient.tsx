@@ -30,6 +30,8 @@ const EMPTY_FORM = {
   priority_level: 'Moyen' as Priority['priority_level'],
   status: 'À faire' as Priority['status'],
   due_date: '', notes: '',
+  start_date: '', end_date: '',
+  branch_ids: [] as string[],
 }
 
 // ─── Priority Modal ─────────────────────────────────────────────────────────────
@@ -72,6 +74,8 @@ function PriorityModal({
         color: priority.color, priority_level: priority.priority_level,
         status: priority.status, due_date: priority.due_date ?? '',
         notes: priority.notes,
+        start_date: priority.start_date ?? '', end_date: priority.end_date ?? '',
+        branch_ids: priority.branch_ids ?? [],
       })
       const hasParts = priority.parts.length > 0
       setParts(priority.parts.map(p => ({ label: p.label, done: p.done })))
@@ -140,7 +144,10 @@ function PriorityModal({
       color: form.color,
       priority_level: form.priority_level,
       status: form.status,
-      due_date: form.due_date || null,
+      due_date: form.end_date || form.due_date || null,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      branch_ids: splitEnabled ? [] : form.branch_ids,
       notes: form.notes,
       linked_event_id: tab === 'from-event' && selectedEventId ? selectedEventId : (priority?.linked_event_id ?? null),
     }
@@ -348,11 +355,52 @@ function PriorityModal({
             </div>
           </div>
 
-          {/* Due date */}
+          {/* Date range */}
           <div>
-            <label style={lbl}>Date limite</label>
-            <input type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} style={inp} />
+            <label style={lbl}>Dates</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.35)', fontWeight: 600, marginBottom: '4px', letterSpacing: '.06em' }}>DÉBUT</div>
+                <input type="date" value={form.start_date} onChange={e => {
+                  const v = e.target.value
+                  set('start_date', v)
+                  if (form.end_date && v > form.end_date) set('end_date', v)
+                }} style={inp} />
+              </div>
+              <div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.35)', fontWeight: 600, marginBottom: '4px', letterSpacing: '.06em' }}>FIN / ÉCHÉANCE</div>
+                <input type="date" value={form.end_date} min={form.start_date || undefined} onChange={e => set('end_date', e.target.value)} style={inp} />
+              </div>
+            </div>
           </div>
+
+          {/* Branches — hidden when split is enabled */}
+          {!splitEnabled && branches.length > 0 && (
+            <div>
+              <label style={lbl}>Succursales concernées</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {branches.map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => set('branch_ids', form.branch_ids.includes(b.id)
+                      ? form.branch_ids.filter(x => x !== b.id)
+                      : [...form.branch_ids, b.id]
+                    )}
+                    style={{
+                      padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                      cursor: 'pointer', border: '1px solid',
+                      borderColor: form.branch_ids.includes(b.id) ? b.color : 'rgba(255,255,255,.15)',
+                      background: form.branch_ids.includes(b.id) ? `${b.color}22` : 'transparent',
+                      color: form.branch_ids.includes(b.id) ? b.color : 'rgba(255,255,255,.4)',
+                    }}
+                  >
+                    {b.short_code}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
 
@@ -376,13 +424,14 @@ function PriorityModal({
 // ─── Priority Row ───────────────────────────────────────────────────────────────
 
 function PriorityRow({
-  p, rank, isFirst, isLast,
+  p, rank, isFirst, isLast, branches,
   onEdit, onMoveUp, onMoveDown, onToggleLock, onTogglePart,
 }: {
   p: PriorityWithParts
   rank: number
   isFirst: boolean
   isLast: boolean
+  branches: Branch[]
   onEdit: () => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -395,6 +444,7 @@ function PriorityRow({
   const totalParts = p.parts.length
   const pct = totalParts ? Math.round(doneParts / totalParts * 100) : null
   const isOverdue = p.due_date && p.due_date < todayStr() && p.status !== 'Terminé'
+  const [partsOpen, setPartsOpen] = useState(totalParts <= 4)
 
   const btnStyle: React.CSSProperties = {
     padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
@@ -440,11 +490,23 @@ function PriorityRow({
             </div>
           )}
           {/* Footer meta */}
-          {p.due_date && (
-            <div style={{ fontSize: '11px', color: isOverdue ? '#FF4D6D' : 'rgba(255,255,255,.3)', fontWeight: isOverdue ? 700 : 400 }}>
-              {isOverdue ? '⚠ ' : ''}Échéance : {localDate(p.due_date).toLocaleDateString('fr-CA')}
-            </div>
-          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+            {p.start_date && p.end_date && p.start_date !== p.end_date
+              ? <span style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)' }}>
+                  {localDate(p.start_date).toLocaleDateString('fr-CA')} → {localDate(p.end_date).toLocaleDateString('fr-CA')}
+                </span>
+              : p.end_date || p.due_date
+              ? <span style={{ fontSize: '11px', color: isOverdue ? '#FF4D6D' : 'rgba(255,255,255,.3)', fontWeight: isOverdue ? 700 : 400 }}>
+                  {isOverdue ? '⚠ ' : ''}Échéance : {localDate((p.end_date || p.due_date)!).toLocaleDateString('fr-CA')}
+                </span>
+              : null
+            }
+            {(p.branch_ids ?? []).length > 0 && branches.filter(b => p.branch_ids.includes(b.id)).map(b => (
+              <span key={b.id} style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '5px', background: `${b.color}22`, color: b.color, border: `1px solid ${b.color}44` }}>
+                {b.short_code}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Right-side actions */}
@@ -466,33 +528,42 @@ function PriorityRow({
         </div>
       </div>
 
-      {/* Parts sub-list */}
+      {/* Parts sub-list — collapsible */}
       {p.parts.length > 0 && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '10px 16px 12px 22px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>
-            {doneParts}/{totalParts} PARTIES COMPLÉTÉES
-          </div>
-          <div style={{ display: 'grid', gap: '4px' }}>
-            {p.parts.map(pt => (
-              <div
-                key={pt.id}
-                onClick={() => onTogglePart(pt.id, !pt.done)}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', background: pt.done ? 'rgba(6,214,160,.06)' : 'rgba(255,255,255,.03)', border: `1px solid ${pt.done ? 'rgba(6,214,160,.2)' : 'rgba(255,255,255,.06)'}` }}
-              >
-                <div style={{
-                  width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
-                  border: pt.done ? 'none' : '2px solid rgba(255,255,255,.2)',
-                  background: pt.done ? '#06D6A0' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {pt.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          {/* Collapse toggle header */}
+          <button
+            onClick={() => setPartsOpen(v => !v)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px 8px 22px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.06em', textTransform: 'uppercase', flex: 1 }}>
+              {doneParts}/{totalParts} PARTIES COMPLÉTÉES
+            </span>
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.3)', transition: 'transform .2s', display: 'inline-block', transform: partsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+          </button>
+          {partsOpen && (
+            <div style={{ padding: '0 16px 12px 22px', display: 'grid', gap: '4px' }}>
+              {p.parts.map(pt => (
+                <div
+                  key={pt.id}
+                  onClick={() => onTogglePart(pt.id, !pt.done)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', background: pt.done ? 'rgba(6,214,160,.06)' : 'rgba(255,255,255,.03)', border: `1px solid ${pt.done ? 'rgba(6,214,160,.2)' : 'rgba(255,255,255,.06)'}` }}
+                >
+                  <div style={{
+                    width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                    border: pt.done ? 'none' : '2px solid rgba(255,255,255,.2)',
+                    background: pt.done ? '#06D6A0' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {pt.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                  <span style={{ fontSize: '13px', color: pt.done ? 'rgba(255,255,255,.3)' : '#e8e8f0', textDecoration: pt.done ? 'line-through' : 'none', flex: 1 }}>
+                    {pt.label}
+                  </span>
                 </div>
-                <span style={{ fontSize: '13px', color: pt.done ? 'rgba(255,255,255,.3)' : '#e8e8f0', textDecoration: pt.done ? 'line-through' : 'none', flex: 1 }}>
-                  {pt.label}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -630,6 +701,7 @@ export default function PrioritiesClient({
               rank={idx + 1}
               isFirst={idx === 0}
               isLast={idx === sorted.length - 1}
+              branches={branches}
               onEdit={() => openModal(p)}
               onMoveUp={() => handleMove(p, 'up')}
               onMoveDown={() => handleMove(p, 'down')}
