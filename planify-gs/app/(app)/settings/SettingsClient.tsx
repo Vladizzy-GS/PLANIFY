@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ConfirmModal from '@/app/components/ConfirmModal'
 
@@ -30,6 +31,7 @@ export default function SettingsClient({
 }) {
   const isAdmin = role === 'admin'
   const supabase = createClient()
+  const router = useRouter()
 
   // Employee management state
   const [employees, setEmployees] = useState(initialEmployees)
@@ -77,6 +79,7 @@ export default function SettingsClient({
         setEmployees(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
       }
       setShowModal(false)
+      router.refresh()
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : 'Erreur') }
     setSaving(false)
   }
@@ -84,13 +87,13 @@ export default function SettingsClient({
   function handleDelete(id: string) {
     askConfirm('Supprimer cet employé ?', 'Cette action est irréversible.', async () => {
       const res = await fetch('/api/admin/employees', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-      if (res.ok) setEmployees(prev => prev.filter(e => e.id !== id))
+      if (res.ok) { setEmployees(prev => prev.filter(e => e.id !== id)); router.refresh() }
     })
   }
 
   async function handleToggle(emp: Employee) {
     const res = await fetch('/api/admin/employees', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emp.id, is_active: !emp.is_active }) })
-    if (res.ok) { const updated = await res.json(); setEmployees(prev => prev.map(e => e.id === emp.id ? updated : e)) }
+    if (res.ok) { const updated = await res.json(); setEmployees(prev => prev.map(e => e.id === emp.id ? updated : e)); router.refresh() }
   }
 
   async function handleSavePin(e: React.FormEvent) {
