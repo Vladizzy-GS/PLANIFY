@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
 import { eventVisibleOn, todayStr, localDate } from '@/lib/utils/dates'
-import type { Event, Priority } from '@/types/database'
+import type { Event, Priority, Employee, Branch, Alert } from '@/types/database'
 
 const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
 const MONTHS_FR = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc']
@@ -133,10 +133,13 @@ function Widget({ icon, title, badge, color, children }: {
 }
 
 export default function TasksClient({
-  initialEvents, initialPriorities,
+  initialEvents, initialPriorities, employees: _employees, branches: _branches, initialTaskAlerts: _initialTaskAlerts,
 }: {
   initialEvents: Event[]
   initialPriorities: Priority[]
+  employees: Employee[]
+  branches: Branch[]
+  initialTaskAlerts: Alert[]
 }) {
   const [events, setEvents] = useState(initialEvents)
   const today = todayStr()
