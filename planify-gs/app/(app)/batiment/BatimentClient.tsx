@@ -47,7 +47,7 @@ const FREQ_OPTIONS = ['N/A', '1x', '2x', '4x']
 
 // ─── Period rows for Inspection Bâtiment ─────────────────────────────────────
 
-const INSP_YEARS = [2025, 2026]
+const INSP_YEARS_INIT = [2025, 2026]
 const MONTH_NAMES = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
 
 function buildPeriodRows(yr: number) {
@@ -374,6 +374,12 @@ export default function BatimentClient({
 
 // ─── Tab: Inspection Bâtiment ─────────────────────────────────────────────────
 
+const FREQ_TYPE_LABELS: Record<string, string> = {
+  annuel: 'ANNUEL',
+  semestriel: 'SEMESTRIEL',
+  mensuel: 'MENSUEL',
+}
+
 function InspectionBatimentTab({
   branches,
   getInspDate,
@@ -384,28 +390,73 @@ function InspectionBatimentTab({
   getInspDate: (branchId: string, period: string) => string
   saveInspDate: (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => Promise<void>
 }) {
-  const [year, setYear] = useState(2025)
-  const rows = buildPeriodRows(year)
+  const [years, setYears] = useState<number[]>(INSP_YEARS_INIT)
+  const [year, setYear] = useState(INSP_YEARS_INIT[0])
+  // Active type filters — all on by default
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(['annuel', 'semestriel', 'mensuel']))
+
+  const allRows = buildPeriodRows(year)
+  const rows = allRows.filter(r => activeTypes.has(r.period_type))
+
+  function addNextYear() {
+    const next = Math.max(...years) + 1
+    setYears(prev => [...prev, next])
+    setYear(next)
+  }
+
+  function toggleType(t: string) {
+    setActiveTypes(prev => {
+      const n = new Set(prev)
+      if (n.has(t)) {
+        // Don't allow deselecting all
+        if (n.size === 1) return n
+        n.delete(t)
+      } else {
+        n.add(t)
+      }
+      return n
+    })
+  }
 
   return (
     <div>
       {/* Year selector + legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-          {INSP_YEARS.map(y => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {/* Year tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
+          {years.map(y => (
             <button key={y} onClick={() => setYear(y)} style={{
               padding: '6px 20px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
               background: year === y ? '#FF4D6D' : 'transparent',
               color: year === y ? '#fff' : 'var(--text-muted)',
             }}>{y}</button>
           ))}
+          <button onClick={addNextYear} title={`Ajouter ${Math.max(...years) + 1}`} style={{
+            padding: '6px 12px', border: 'none', borderLeft: '1px solid var(--border-subtle)',
+            cursor: 'pointer', fontSize: '15px', fontWeight: 700, color: 'var(--text-muted)',
+            background: 'transparent', lineHeight: 1, transition: 'color .12s',
+          }}>+</button>
         </div>
-        {(['annuel', 'semestriel', 'mensuel'] as const).map(t => (
-          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: TYPE_COLOR[t] }} />
-            <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{t}</span>
-          </div>
-        ))}
+
+        {/* Frequency type filter chips */}
+        {(['annuel', 'semestriel', 'mensuel'] as const).map(t => {
+          const active = activeTypes.has(t)
+          const color = TYPE_COLOR[t]
+          return (
+            <button key={t} onClick={() => toggleType(t)} style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '5px 12px', borderRadius: '20px', cursor: 'pointer',
+              border: `1.5px solid ${active ? color : 'var(--border-subtle)'}`,
+              background: active ? color + '22' : 'transparent',
+              transition: 'all .12s',
+            }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: active ? color : 'var(--text-muted)' }} />
+              <span style={{ fontSize: '11px', textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 700, color: active ? color : 'var(--text-muted)' }}>
+                {FREQ_TYPE_LABELS[t]}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Card per branch */}
