@@ -139,6 +139,8 @@ function EventModal({
           priority_level: savedEvent.priority_level,
           status: 'À faire' as const,
           rank: nextRank,
+          notes: '',
+          due_date: null,
           linked_event_id: savedEvent.id,
         })
       }
