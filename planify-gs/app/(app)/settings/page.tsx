@@ -13,18 +13,18 @@ export default async function SettingsPage() {
   const { data: profile } = await supabase.from('profiles').select('role, display_name').eq('id', user.id).single()
   const isAdmin = profile?.role === 'admin'
 
-  let employees: Employee[] = []
-  if (isAdmin) {
-    const { data } = await supabase.from('employees').select('*').order('name')
-    employees = (data ?? []) as Employee[]
-  }
+  const [employeesRes, pinRes] = await Promise.all([
+    isAdmin ? supabase.from('employees').select('*').order('name') : Promise.resolve({ data: [] }),
+    isAdmin ? supabase.from('app_settings').select('value').eq('key', 'admin_pin').single() : Promise.resolve({ data: null }),
+  ])
 
   return (
     <SettingsClient
       userEmail={user.email ?? ''}
       displayName={profile?.display_name ?? null}
       role={profile?.role ?? 'employee'}
-      initialEmployees={employees}
+      initialEmployees={(employeesRes.data ?? []) as Employee[]}
+      currentPin={isAdmin ? ((pinRes.data as { value?: string } | null)?.value ?? '1234') : undefined}
     />
   )
 }

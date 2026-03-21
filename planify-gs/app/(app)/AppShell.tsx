@@ -369,12 +369,49 @@ export default function AppShell({
     if (typeof window === 'undefined') return true
     return localStorage.getItem('planify-theme') !== 'light'
   })
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('planify-sidebar') === 'collapsed'
+  })
   const [deplOpen, setDeplOpen] = useState(true)
+
+  // ─── Employee creation modal ─────────────────────────────────────────────────
+  const [localEmps, setLocalEmps] = useState(employees)
+  const [addOpen, setAddOpen] = useState(false)
+  const GRADS = [
+    'linear-gradient(135deg,#FF4D6D,#F77F00)',
+    'linear-gradient(135deg,#4CC9F0,#7B2FBE)',
+    'linear-gradient(135deg,#06D6A0,#4CC9F0)',
+    'linear-gradient(135deg,#F77F00,#FCBF49)',
+    'linear-gradient(135deg,#7B2FBE,#FF4D6D)',
+    'linear-gradient(135deg,#EF233C,#7B2FBE)',
+  ]
+  const [addForm, setAddForm] = useState({ name: '', initials: '', role_title: '', email: '', phone: '', avatar_gradient: 'linear-gradient(135deg,#FF4D6D,#F77F00)' })
+  const [addSaving, setAddSaving] = useState(false)
+  const [addErr, setAddErr] = useState('')
+
+  async function handleAddEmp(e: React.FormEvent) {
+    e.preventDefault(); setAddSaving(true); setAddErr('')
+    try {
+      const res = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) })
+      if (!res.ok) throw new Error((await res.json()).error)
+      const created = await res.json()
+      setLocalEmps(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+      setAddOpen(false)
+      setAddForm({ name: '', initials: '', role_title: '', email: '', phone: '', avatar_gradient: GRADS[0] })
+      router.refresh()
+    } catch (e: unknown) { setAddErr(e instanceof Error ? e.message : 'Erreur') }
+    setAddSaving(false)
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
     localStorage.setItem('planify-theme', isDark ? 'dark' : 'light')
   }, [isDark])
+
+  useEffect(() => {
+    localStorage.setItem('planify-sidebar', collapsed ? 'collapsed' : 'expanded')
+  }, [collapsed])
 
   // ─── Calendar store (for déplacements + progress) ───────────────────────────
   const { calMode, wkStart, dayView, monView, calEvents, setBranches } = useCalendarStore()
@@ -457,23 +494,32 @@ export default function AppShell({
     return result
   }, [calEvents, calMode, wkStart, dayView, monView, selectedEmployeeId, employeeId, isAdmin, branches])
 
+  const sidebarW = collapsed ? '54px' : '210px'
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {/* Sidebar */}
-      <aside style={st.sidebar}>
+      <aside style={{ ...st.sidebar, width: sidebarW, minWidth: sidebarW, transition: 'width .2s ease, min-width .2s ease' }}>
 
-        {/* Branding */}
-        <div style={st.brand}>
-          <div style={st.brandLabel}>Gestion Équipe</div>
-          <div style={st.brandTitle}>
-            <span>Planify</span>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>·</span>
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '18px' }}>GS</span>
-          </div>
+        {/* Branding + collapse toggle */}
+        <div style={{ ...st.brand, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: collapsed ? '14px 10px' : '18px 16px 12px' }}>
+          {!collapsed && (
+            <div>
+              <div style={st.brandLabel}>Gestion Équipe</div>
+              <div style={st.brandTitle}>
+                <span>Planify</span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>·</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '18px' }}>GS</span>
+              </div>
+            </div>
+          )}
+          <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Développer' : 'Réduire'} style={{ width: '24px', height: '24px', borderRadius: '7px', border: '1px solid var(--border-normal)', background: 'var(--bg-hover)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+            {collapsed ? '›' : '‹'}
+          </button>
         </div>
 
         {/* Admin badge */}
-        {isAdmin && (
+        {isAdmin && !collapsed && (
           <div style={st.adminRow}>
             <div style={st.adminBadge}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -484,54 +530,57 @@ export default function AppShell({
           </div>
         )}
 
-        {/* Employee list — visible to all; interactive switching for admin only */}
-        <div style={st.section}>
-          <div style={st.sectionLabel}>
-            <span>Employés</span>
-            {isAdmin && (
-              <Link
-                href="/admin/settings"
-                style={{
-                  width: '18px', height: '18px', borderRadius: '6px',
-                  background: 'var(--bg-hover)', border: '1px solid var(--border-normal)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1,
-                  textDecoration: 'none',
-                }}
-                title="Gérer les employés"
-              >+</Link>
-            )}
-          </div>
-          {employees.map(emp => (
-            <div
-              key={emp.id}
-              style={empRowStyle(isAdmin && selectedEmployeeId === emp.id)}
-              onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined}
-            >
-              <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={st.empName}>{emp.name}</div>
-                <div style={st.empStatus}>En ligne</div>
-              </div>
+        {/* Employee list */}
+        <div style={collapsed ? { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } : st.section}>
+          {!collapsed && (
+            <div style={st.sectionLabel}>
+              <span>Employés</span>
               {isAdmin && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
+                <button
+                  onClick={() => setAddOpen(true)}
+                  style={{ width: '18px', height: '18px', borderRadius: '6px', background: 'var(--bg-hover)', border: '1px solid var(--border-normal)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1, cursor: 'pointer' }}
+                  title="Ajouter un employé"
+                >+</button>
               )}
             </div>
+          )}
+          {localEmps.map(emp => (
+            collapsed ? (
+              <div key={emp.id} style={{ ...avatarStyle(emp.avatar_gradient), cursor: isAdmin ? 'pointer' : 'default', border: isAdmin && selectedEmployeeId === emp.id ? '2px solid var(--text-primary)' : '2px solid transparent' }} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined} title={emp.name}>
+                {emp.initials}
+              </div>
+            ) : (
+              <div key={emp.id} style={empRowStyle(isAdmin && selectedEmployeeId === emp.id)} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined}>
+                <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={st.empName}>{emp.name}</div>
+                  <div style={st.empStatus}>En ligne</div>
+                </div>
+                {isAdmin && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                )}
+              </div>
+            )
           ))}
+          {collapsed && isAdmin && (
+            <button onClick={() => setAddOpen(true)} style={{ width: '32px', height: '20px', borderRadius: '6px', border: '1px dashed var(--border-normal)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Ajouter un employé">+</button>
+          )}
         </div>
 
         {/* Week progress */}
-        <div style={st.progressRow}>
-          <div style={st.progressLabel}>
-            <span>Semaine</span>
-            <span style={{ color: '#FF4D6D', fontWeight: 700 }}>{weekProgress}%</span>
+        {!collapsed && (
+          <div style={st.progressRow}>
+            <div style={st.progressLabel}>
+              <span>Semaine</span>
+              <span style={{ color: '#FF4D6D', fontWeight: 700 }}>{weekProgress}%</span>
+            </div>
+            <div style={st.progressBar}>
+              <div style={{ width: `${weekProgress}%`, height: '100%', background: '#FF4D6D', borderRadius: '2px', transition: 'width .4s ease' }} />
+            </div>
           </div>
-          <div style={st.progressBar}>
-            <div style={{ width: `${weekProgress}%`, height: '100%', background: '#FF4D6D', borderRadius: '2px', transition: 'width .4s ease' }} />
-          </div>
-        </div>
+        )}
 
         {/* Navigation */}
         <div style={st.navSection}>
@@ -539,10 +588,11 @@ export default function AppShell({
             const active = pathname === href || pathname.startsWith(href + '/')
             const count = badge === 'alert' ? alertCount : badge === 'task' ? taskCount : 0
             return (
-              <Link key={href} href={href} style={navItemStyle(active)}>
+              <Link key={href} href={href} title={collapsed ? label : undefined} style={collapsed ? { ...navItemStyle(active), justifyContent: 'center', padding: '8px' } : navItemStyle(active)}>
                 <span style={navIconStyle(active)}>{icon}</span>
-                {label}
-                {count > 0 && <span style={badgeStyle()}>{count}</span>}
+                {!collapsed && label}
+                {!collapsed && count > 0 && <span style={badgeStyle()}>{count}</span>}
+                {collapsed && count > 0 && <span style={{ position: 'absolute' as const, top: '4px', right: '4px', width: '7px', height: '7px', borderRadius: '50%', background: '#FF4D6D' }} />}
               </Link>
             )
           })}
@@ -550,32 +600,32 @@ export default function AppShell({
           {isAdmin && (
             <>
               <div style={st.divider} />
-              <Link href="/admin/dashboard" style={adminNavItemStyle(pathname.startsWith('/admin'))}>
+              <Link href="/admin/dashboard" title={collapsed ? 'Tableau Admin' : undefined} style={collapsed ? { ...adminNavItemStyle(pathname.startsWith('/admin')), justifyContent: 'center', padding: '8px' } : adminNavItemStyle(pathname.startsWith('/admin'))}>
                 <span style={{ color: pathname.startsWith('/admin') ? '#FFB703' : 'var(--text-muted)', flexShrink: 0 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                   </svg>
                 </span>
-                Tableau Admin
-                {adminCount > 0 && <span style={badgeStyle('#FFB703')}>{adminCount}</span>}
+                {!collapsed && 'Tableau Admin'}
+                {!collapsed && adminCount > 0 && <span style={badgeStyle('#FFB703')}>{adminCount}</span>}
               </Link>
             </>
           )}
 
           <div style={st.divider} />
-          <Link href="/settings" style={navItemStyle(pathname === '/settings')}>
+          <Link href="/settings" title={collapsed ? 'Paramètres' : undefined} style={collapsed ? { ...navItemStyle(pathname === '/settings'), justifyContent: 'center', padding: '8px' } : navItemStyle(pathname === '/settings')}>
             <span style={navIconStyle(pathname === '/settings')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
             </span>
-            Paramètres
+            {!collapsed && 'Paramètres'}
           </Link>
         </div>
 
         {/* Déplacements */}
-        <div style={st.deplSection}>
+        {!collapsed && <div style={st.deplSection}>
           <div style={st.deplLabelRow} onClick={() => setDeplOpen(v => !v)}>
             <span>{deplOpen ? '▾' : '▸'} Déplacements</span>
             <span style={st.deplBadge}>{deplPeriodLabel}</span>
@@ -616,23 +666,23 @@ export default function AppShell({
               Aucun déplacement
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Bottom — theme + user info + sign out */}
         <div style={st.bottomSection}>
-          <button style={themeButtonStyle(isDark)} onClick={() => setIsDark(v => !v)}>
+          <button style={collapsed ? { ...themeButtonStyle(isDark), justifyContent: 'center', padding: '8px' } : themeButtonStyle(isDark)} onClick={() => setIsDark(v => !v)} title={isDark ? 'Mode clair' : 'Mode sombre'}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               {isDark
                 ? <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
                 : <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>
               }
             </svg>
-            {isDark ? 'Mode clair' : 'Mode sombre'}
+            {!collapsed && (isDark ? 'Mode clair' : 'Mode sombre')}
           </button>
 
           {/* User info + sign out — accessible to all roles */}
           <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-            {displayName && (
+            {!collapsed && displayName && (
               <div style={st.userRow}>
                 <div style={st.userInfo}>
                   <div style={st.userName}>{displayName}</div>
@@ -640,11 +690,11 @@ export default function AppShell({
                 </div>
               </div>
             )}
-            <button style={st.signOutBtn} onClick={handleSignOut}>
+            <button style={collapsed ? { ...st.signOutBtn, justifyContent: 'center', padding: '8px' } : st.signOutBtn} onClick={handleSignOut} title="Se déconnecter">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              Se déconnecter
+              {!collapsed && 'Se déconnecter'}
             </button>
           </div>
         </div>
@@ -654,6 +704,35 @@ export default function AppShell({
       <main style={{ flex: 1, overflow: 'auto', minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         {children}
       </main>
+
+      {/* Employee creation modal */}
+      {addOpen && isAdmin && (
+        <div onClick={() => setAddOpen(false)} className="modal-overlay">
+          <form onClick={e => e.stopPropagation()} onSubmit={handleAddEmp} className="modal-card" style={{ width: '420px' }}>
+            <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Nouvel employé</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input required placeholder="Nom complet *" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} className="modal-inp" />
+              <input required maxLength={3} placeholder="Initiales * (ex: SV)" value={addForm.initials} onChange={e => setAddForm(f => ({ ...f, initials: e.target.value.toUpperCase() }))} className="modal-inp" />
+              <input placeholder="Titre / rôle" value={addForm.role_title} onChange={e => setAddForm(f => ({ ...f, role_title: e.target.value }))} className="modal-inp" />
+              <input placeholder="Courriel" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} className="modal-inp" />
+              <input placeholder="Téléphone" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} className="modal-inp" />
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Couleur avatar</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {GRADS.map(g => (
+                    <div key={g} onClick={() => setAddForm(f => ({ ...f, avatar_gradient: g }))} style={{ width: '28px', height: '28px', borderRadius: '8px', background: g, cursor: 'pointer', border: addForm.avatar_gradient === g ? '3px solid var(--text-primary)' : '3px solid transparent' }} />
+                  ))}
+                </div>
+              </div>
+              {addErr && <div style={{ fontSize: '12px', color: '#FF4D6D' }}>{addErr}</div>}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button type="button" onClick={() => setAddOpen(false)} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border-normal)', background: 'transparent', color: 'var(--text-secondary)', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+                <button type="submit" disabled={addSaving} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#FF4D6D', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>{addSaving ? '…' : 'Créer'}</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

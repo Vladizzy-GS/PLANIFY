@@ -64,17 +64,17 @@ function empStats(
 function Bar({ val, max, color }: { val: number; max: number; color: string }) {
   const pct = max === 0 ? 0 : Math.min(100, Math.round(val / max * 100))
   return (
-    <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,.08)' }}>
+    <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'var(--bg-hover)' }}>
       <div style={{ width: `${pct}%`, height: '100%', borderRadius: '3px', background: color, transition: 'width .35s' }} />
     </div>
   )
 }
 function StatChip({ label, value, color, sub }: { label: string; value: string | number; color: string; sub?: string }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)', borderRadius: '10px', padding: '10px 12px' }}>
+    <div style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '10px 12px' }}>
       <div style={{ fontSize: '20px', fontWeight: 800, color, fontFamily: 'var(--font-syne)', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: '#e8e8f0', marginTop: '3px', letterSpacing: '.03em' }}>{label}</div>
-      {sub && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)', marginTop: '1px' }}>{sub}</div>}
+      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '3px', letterSpacing: '.03em' }}>{label}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{sub}</div>}
     </div>
   )
 }
@@ -103,10 +103,10 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
   compact?: boolean
 }) {
   const [sc, sLabel] = statusInfo(stats.statusScore)
-  const lbl: React.CSSProperties = { fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.07em', textTransform: 'uppercase' as const, marginBottom: '8px' }
+  const lbl: React.CSSProperties = { fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.07em', textTransform: 'uppercase' as const, marginBottom: '8px' }
 
   return (
-    <div style={{ background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -114,8 +114,8 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
           {emp.initials}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{emp.name}</div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.35)' }}>{emp.role_title || 'Employé'}</div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>{emp.name}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.role_title || 'Employé'}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: sc, boxShadow: `0 0 6px ${sc}` }} />
@@ -129,7 +129,7 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
           <span style={lbl}>Tâches ({stats.done}/{stats.total})</span>
           <span style={{ fontSize: '11px', fontWeight: 700, color: stats.pct >= 80 ? '#06D6A0' : stats.pct >= 40 ? '#FCBF49' : '#FF4D6D' }}>{stats.pct}%</span>
         </div>
-        <div style={{ height: '7px', borderRadius: '4px', background: 'rgba(255,255,255,.08)' }}>
+        <div style={{ height: '7px', borderRadius: '4px', background: 'var(--bg-hover)' }}>
           <div style={{ width: `${stats.pct}%`, height: '100%', borderRadius: '4px', background: stats.pct >= 80 ? '#06D6A0' : stats.pct >= 40 ? '#FCBF49' : '#FF4D6D', transition: 'width .4s' }} />
         </div>
       </div>
@@ -138,10 +138,10 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
         <StatChip label="En retard" value={stats.overdue.length} color={stats.overdue.length > 0 ? '#FF4D6D' : '#06D6A0'} />
         <StatChip label="Déplacements" value={stats.deplEv.length} color="#4CC9F0" sub={`${stats.visitedBranches.length} succursale${stats.visitedBranches.length > 1 ? 's' : ''}`} />
-        <StatChip label="Urgentes" value={stats.urgent} color={stats.urgent > 0 ? '#FF4D6D' : '#e8e8f0'} />
+        <StatChip label="Urgentes" value={stats.urgent} color={stats.urgent > 0 ? '#FF4D6D' : 'var(--text-primary)'} />
         <StatChip label="Priorités act." value={stats.activePrio.length} color="#F77F00" />
         <StatChip label="Priorités done" value={`${stats.prioPct}%`} color={stats.prioPct >= 80 ? '#06D6A0' : '#FCBF49'} sub={`${stats.donePrio.length}/${stats.myPrio.length}`} />
-        <StatChip label="Alertes non lues" value={stats.unread.length} color={stats.unread.length > 0 ? '#FCBF49' : '#e8e8f0'} />
+        <StatChip label="Alertes non lues" value={stats.unread.length} color={stats.unread.length > 0 ? '#FCBF49' : 'var(--text-primary)'} />
       </div>
 
       {/* Déplacements breakdown */}
@@ -155,7 +155,7 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
                 <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '8px', background: `${b.color}18`, border: `1px solid ${b.color}40` }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: b.color }} />
                   <span style={{ fontSize: '11px', fontWeight: 700, color: b.color }}>{b.short_code}</span>
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,.35)' }}>×{count}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>×{count}</span>
                 </div>
               )
             })}
@@ -170,12 +170,12 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {stats.overdue.slice(0, compact ? 2 : 4).map(e => (
               <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '7px', background: 'rgba(255,77,109,.06)', border: '1px solid rgba(255,77,109,.12)' }}>
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,.55)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</span>
                 <span style={{ fontSize: '10px', color: '#FF4D6D', marginLeft: '8px', flexShrink: 0 }}>{fmt(e.end_date)}</span>
               </div>
             ))}
             {stats.overdue.length > (compact ? 2 : 4) && (
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.25)', paddingLeft: '4px' }}>+{stats.overdue.length - (compact ? 2 : 4)} autres</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '4px' }}>+{stats.overdue.length - (compact ? 2 : 4)} autres</div>
             )}
           </div>
         </div>
@@ -187,14 +187,14 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
           <div style={lbl}>Priorités actives</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {stats.activePrio.slice(0, compact ? 2 : 4).map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: '7px', background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)' }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: '7px', background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ width: '3px', height: '24px', borderRadius: '2px', background: p.color || prioColor(p.priority_level), flexShrink: 0 }} />
-                <span style={{ fontSize: '11px', color: '#e8e8f0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 <span style={{ fontSize: '9px', fontWeight: 700, color: statColor(p.status), background: `${statColor(p.status)}18`, borderRadius: '5px', padding: '2px 5px', flexShrink: 0 }}>{p.status}</span>
               </div>
             ))}
             {stats.activePrio.length > (compact ? 2 : 4) && (
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.25)', paddingLeft: '4px' }}>+{stats.activePrio.length - (compact ? 2 : 4)} autres</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '4px' }}>+{stats.activePrio.length - (compact ? 2 : 4)} autres</div>
             )}
           </div>
         </div>
@@ -211,8 +211,8 @@ function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, com
                 <div key={a.id} style={{ display: 'flex', gap: '8px', padding: '5px 8px', borderRadius: '7px', background: `${c}08`, border: `1px solid ${c}20` }}>
                   <div style={{ width: '3px', borderRadius: '2px', background: c, alignSelf: 'stretch', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</div>
-                    {a.message && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.message}</div>}
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</div>
+                    {a.message && <div style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.message}</div>}
                   </div>
                 </div>
               )
@@ -287,23 +287,23 @@ export default function AdminDashboardClient({
     return { done, total, pct: total === 0 ? 0 : Math.round(done/total*100), depl: depl.length, uniqueBranches, overdue: overdue.length, activePrio: activePrio.length, myPrio: myPrio.length, unread: unread.length, urgent: urgent.length, urgentTasks }
   }, [displayEmps, allEvents, priorities, allAlerts, dateFrom, dateTo, today])
 
-  const card: React.CSSProperties = { background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '14px' }
+  const card: React.CSSProperties = { background: 'var(--surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '14px' }
   const qBtn = (active: boolean): React.CSSProperties => ({
-    padding: '6px 12px', borderRadius: '8px', border: `1px solid ${active ? 'rgba(76,201,240,.4)' : 'rgba(255,255,255,.1)'}`,
-    background: active ? 'rgba(76,201,240,.1)' : 'transparent', color: active ? '#4CC9F0' : 'rgba(255,255,255,.45)',
+    padding: '6px 12px', borderRadius: '8px', border: `1px solid ${active ? 'rgba(76,201,240,.4)' : 'var(--border-normal)'}`,
+    background: active ? 'rgba(76,201,240,.1)' : 'transparent', color: active ? '#4CC9F0' : 'var(--text-secondary)',
     fontSize: '12px', fontWeight: 700, cursor: 'pointer',
   })
 
   return (
-    <div style={{ padding: '24px 28px', color: '#e8e8f0', maxWidth: '1200px' }}>
+    <div style={{ padding: '24px 28px', color: 'var(--text-primary)', maxWidth: '1200px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Admin · Vue globale</div>
-          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '26px', fontWeight: 800, color: '#e8e8f0' }}>Tableau de bord</h1>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Admin · Vue globale</div>
+          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)' }}>Tableau de bord</h1>
         </div>
-        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.3)', fontWeight: 600 }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
           {fmt(dateFrom)} → {fmt(dateTo)}
         </div>
       </div>
@@ -326,9 +326,9 @@ export default function AdminDashboardClient({
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '5px 10px', borderRadius: '8px', cursor: 'pointer',
-                border: `1px solid ${selectedEmpId === emp.id && !compareMode ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.1)'}`,
-                background: selectedEmpId === emp.id && !compareMode ? 'rgba(255,255,255,.08)' : 'transparent',
-                fontSize: '12px', fontWeight: 700, color: selectedEmpId === emp.id && !compareMode ? '#e8e8f0' : 'rgba(255,255,255,.45)',
+                border: `1px solid ${selectedEmpId === emp.id && !compareMode ? 'var(--text-secondary)' : 'var(--border-subtle)'}`,
+                background: selectedEmpId === emp.id && !compareMode ? 'var(--bg-hover)' : 'transparent',
+                fontSize: '12px', fontWeight: 700, color: selectedEmpId === emp.id && !compareMode ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}
             >
               <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: emp.avatar_gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff' }}>
@@ -350,7 +350,7 @@ export default function AdminDashboardClient({
           )}
         </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,.1)' }} />
+        <div style={{ width: '1px', height: '24px', background: 'var(--border-normal)' }} />
 
         {/* Date range */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -361,12 +361,12 @@ export default function AdminDashboardClient({
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input type="date" value={customFrom}
                 onChange={e => { const v = e.target.value; setCustomFrom(v); if (v > customTo) setCustomTo(v) }}
-                style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: '#e8e8f0', fontSize: '12px' }}
+                style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid var(--border-normal)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
               />
-              <span style={{ color: 'rgba(255,255,255,.3)', fontSize: '12px' }}>→</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>→</span>
               <input type="date" value={customTo} min={customFrom}
                 onChange={e => setCustomTo(e.target.value)}
-                style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: '#e8e8f0', fontSize: '12px' }}
+                style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid var(--border-normal)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
               />
             </div>
           )}
@@ -379,12 +379,12 @@ export default function AdminDashboardClient({
           { label: 'Tâches', value: `${agg.done}/${agg.total}`, sub: `${agg.pct}% complétées`, color: agg.pct >= 80 ? '#06D6A0' : agg.pct >= 50 ? '#FCBF49' : '#FF4D6D' },
           { label: 'Déplacements', value: agg.depl, sub: `${agg.uniqueBranches} succursale${agg.uniqueBranches > 1 ? 's' : ''} visitée${agg.uniqueBranches > 1 ? 's' : ''}`, color: '#4CC9F0' },
           { label: 'En retard', value: agg.overdue, sub: 'tâches non terminées', color: agg.overdue === 0 ? '#06D6A0' : '#FF4D6D' },
-          { label: 'Tâches urgentes', value: agg.urgentTasks, sub: 'priorité élevée', color: agg.urgentTasks > 0 ? '#FF4D6D' : '#e8e8f0' },
+          { label: 'Tâches urgentes', value: agg.urgentTasks, sub: 'priorité élevée', color: agg.urgentTasks > 0 ? '#FF4D6D' : 'var(--text-primary)' },
         ].map(s => (
           <div key={s.label} style={{ ...card, padding: '14px 16px' }}>
             <div style={{ fontSize: '24px', fontWeight: 800, color: s.color, fontFamily: 'var(--font-syne)', lineHeight: 1, marginBottom: '4px' }}>{s.value}</div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e8f0', marginBottom: '2px' }}>{s.label}</div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)' }}>{s.sub}</div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{s.label}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -397,8 +397,8 @@ export default function AdminDashboardClient({
         ].map(s => (
           <div key={s.label} style={{ ...card, padding: '14px 16px' }}>
             <div style={{ fontSize: '24px', fontWeight: 800, color: s.color, fontFamily: 'var(--font-syne)', lineHeight: 1, marginBottom: '4px' }}>{s.value}</div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e8f0', marginBottom: '2px' }}>{s.label}</div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)' }}>{s.sub}</div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{s.label}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -406,17 +406,17 @@ export default function AdminDashboardClient({
       {/* Employee panels */}
       {compareMode ? (
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>Comparaison des employés</div>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>Comparaison des employés</div>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${displayEmps.length}, 1fr)`, gap: '14px' }}>
             {displayEmps.map(emp => {
               const s = statsMap.get(emp.id)!
               return (
                 <div key={emp.id}>
                   {/* Comparison header bar */}
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: emp.avatar_gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff' }}>{emp.initials}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e8f0' }}>{emp.name}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{emp.name}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
                         <Bar val={s.done} max={s.total} color={s.pct >= 80 ? '#06D6A0' : s.pct >= 40 ? '#FCBF49' : '#FF4D6D'} />
                         <span style={{ fontSize: '10px', fontWeight: 700, color: s.pct >= 80 ? '#06D6A0' : s.pct >= 40 ? '#FCBF49' : '#FF4D6D', minWidth: '28px' }}>{s.pct}%</span>
@@ -431,7 +431,7 @@ export default function AdminDashboardClient({
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
             {selectedEmpId ? `Détail · ${displayEmps[0]?.name ?? ''}` : `Performance des employés · ${fmt(dateFrom)} → ${fmt(dateTo)}`}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: selectedEmpId ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '14px' }}>
@@ -449,32 +449,32 @@ export default function AdminDashboardClient({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '18px' }}>
         {/* All active priorities */}
         <div style={{ ...card, padding: '16px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
             Toutes les priorités actives ({priorities.filter(p => p.status !== 'Terminé').length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '280px', overflowY: 'auto' }}>
             {priorities.filter(p => p.status !== 'Terminé').map(p => {
               const emp = employees.find(e => e.id === p.employee_id)
               return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}>
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ width: '3px', height: '28px', borderRadius: '2px', background: p.color || prioColor(p.priority_level), flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
-                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)' }}>{emp?.name ?? '—'}{p.due_date ? ` · ${fmt(p.due_date)}` : ''}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{emp?.name ?? '—'}{p.due_date ? ` · ${fmt(p.due_date)}` : ''}</div>
                   </div>
                   <span style={{ fontSize: '9px', fontWeight: 700, color: statColor(p.status), background: `${statColor(p.status)}18`, borderRadius: '5px', padding: '2px 6px', flexShrink: 0 }}>{p.status}</span>
                 </div>
               )
             })}
             {priorities.filter(p => p.status !== 'Terminé').length === 0 && (
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.2)', textAlign: 'center', padding: '16px' }}>Aucune priorité active</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>Aucune priorité active</div>
             )}
           </div>
         </div>
 
         {/* Branches */}
         <div style={{ ...card, padding: '16px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
             Succursales ({branches.length}) · {suppliersCount} fournisseurs
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px,1fr))', gap: '7px' }}>
@@ -488,7 +488,7 @@ export default function AdminDashboardClient({
                     <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: b.color, boxShadow: `0 0 5px ${b.color}80` }} />
                     <span style={{ fontSize: '11px', fontWeight: 700, color: b.color }}>{b.short_code}</span>
                   </div>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.4)' }}>{b.name}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{b.name}</div>
                   {filteredDepl > 0 && <div style={{ fontSize: '10px', fontWeight: 700, color: '#4CC9F0', marginTop: '3px' }}>{filteredDepl} dépl.</div>}
                 </div>
               )

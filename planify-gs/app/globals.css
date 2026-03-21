@@ -14,6 +14,11 @@
   --bg-card: rgba(255,255,255,.05);
   --bg-hover: rgba(255,255,255,.07);
 
+  /* Elevated surfaces (modals, cards that need solid bg) */
+  --bg-elevated: #13131f;
+  --surface-subtle: rgba(255,255,255,.025);
+  --surface-card: rgba(255,255,255,.04);
+
   /* Borders */
   --border-subtle: rgba(255,255,255,.07);
   --border-normal: rgba(255,255,255,.11);
@@ -30,8 +35,11 @@
   --bg-panel: rgba(0,0,0,.03);
   --bg-card: rgba(0,0,0,.05);
   --bg-hover: rgba(0,0,0,.08);
-  --border-subtle: rgba(0,0,0,.07);
-  --border-normal: rgba(0,0,0,.12);
+  --bg-elevated: #ffffff;
+  --surface-subtle: rgba(0,0,0,.03);
+  --surface-card: rgba(0,0,0,.04);
+  --border-subtle: rgba(0,0,0,.08);
+  --border-normal: rgba(0,0,0,.13);
   --text-primary: #0d0d1a;
   --text-secondary: rgba(0,0,0,.60);
   --text-muted: rgba(0,0,0,.38);
@@ -102,20 +110,18 @@ select option {
 .modal-inp {
   width: 100%;
   padding: 10px 13px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.1);
+  background: var(--surface-card);
+  border: 1px solid var(--border-normal);
   border-radius: 9px;
   color: var(--text-primary);
   font-size: 14px;
   font-family: inherit;
+  outline: none;
+  transition: border-color .15s;
 }
 .modal-inp::placeholder { color: var(--text-muted); }
-.modal-inp:focus { outline: none; border-color: rgba(255,255,255,.22); }
-
-[data-theme="light"] .modal-inp {
-  background: rgba(0,0,0,.04);
-  border-color: rgba(0,0,0,.12);
-}
+.modal-inp:focus { border-color: rgba(255,77,109,.4); }
+[data-theme="light"] .modal-inp:focus { border-color: rgba(255,77,109,.5); }
 
 .modal-lbl {
   display: block;
@@ -138,8 +144,8 @@ select option {
 }
 
 .modal-card {
-  background: #13131f;
-  border: 1px solid rgba(255,255,255,.1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-normal);
   border-radius: 18px;
   padding: 28px;
   width: 490px;
@@ -147,7 +153,31 @@ select option {
   overflow-y: auto;
 }
 
-[data-theme="light"] .modal-card {
-  background: #ffffff;
-  border-color: rgba(0,0,0,.12);
+/* ── Settings page section cards ────────────────────────────────────────── */
+.settings-section {
+  background: var(--bg-elevated);
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.settings-section-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-section-body {
+  padding: 16px 18px;
+}
+
+/* ── Calendar light mode fixes ──────────────────────────────────────────── */
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="time"],
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] textarea {
+  color-scheme: light;
 }
