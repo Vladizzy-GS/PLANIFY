@@ -376,7 +376,7 @@ function EventModal({
 
 // ─── Week View (time grid) ──────────────────────────────────────────────────────
 
-function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClick, onDateClick }: {
+function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClick, onDateClick, onToggleDone }: {
   wkStart: string
   showWeekends: boolean
   filter: string
@@ -384,6 +384,7 @@ function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClic
   branches: Branch[]
   onEventClick: (ev: Event) => void
   onDateClick: (date: string) => void
+  onToggleDone: (ev: Event) => void
 }) {
   const [startHour, setStartHour] = useState(8)
   const [endHour, setEndHour] = useState(17)
@@ -470,8 +471,11 @@ function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClic
             <div key={day} onClick={() => onDateClick(day)} style={{ ...colStyle, padding: '4px 4px' }}>
               {allDayEvs.map(ev => (
                 <div key={ev.id} onClick={e => { e.stopPropagation(); onEventClick(ev) }}
-                  style={{ borderLeft: `3px solid ${ev.color}`, background: `${ev.color}22`, borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#e8e8f0', marginBottom: '2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', opacity: ev.done ? .5 : 1, display: 'flex', alignItems: 'center', gap: '4px', textDecoration: ev.done ? 'line-through' : 'none' }}>
-                  <span style={{ flexShrink: 0, color: ev.done ? '#06D6A0' : ev.color, fontSize: '12px' }}>{ev.done ? '☑' : '☐'}</span>
+                  style={{ borderLeft: `3px solid ${ev.color}`, background: ev.done ? `${ev.color}12` : `${ev.color}30`, borderRadius: '5px', padding: '3px 7px', fontSize: '12px', fontWeight: 600, color: ev.done ? 'rgba(255,255,255,.4)' : '#fff', marginBottom: '2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', opacity: ev.done ? .6 : 1, display: 'flex', alignItems: 'center', gap: '5px', textDecoration: ev.done ? 'line-through' : 'none' }}>
+                  <span
+                    onClick={e => { e.stopPropagation(); onToggleDone(ev) }}
+                    style={{ flexShrink: 0, color: ev.done ? '#06D6A0' : 'rgba(255,255,255,.7)', fontSize: '13px', cursor: 'pointer', lineHeight: 1 }}
+                  >{ev.done ? '☑' : '☐'}</span>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
                 </div>
               ))}
@@ -512,6 +516,7 @@ function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClic
                   if (evStart >= endHour) return null
                   const top = (evStart - startHour) * ROW_H
                   const height = Math.max((evEnd - evStart) * ROW_H - 2, 20)
+                  const tall = height >= 32
                   return (
                     <div
                       key={ev.id}
@@ -519,14 +524,27 @@ function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClic
                       style={{
                         position: 'absolute', left: '3px', right: '3px',
                         top: `${top + 2}px`, height: `${height}px`,
-                        background: `${ev.color}28`, borderLeft: `3px solid ${ev.color}`,
+                        background: ev.done ? `${ev.color}14` : `${ev.color}32`,
+                        borderLeft: `3px solid ${ev.color}`,
                         borderRadius: '6px', padding: '3px 6px', overflow: 'hidden',
-                        cursor: 'pointer', zIndex: 1, opacity: ev.done ? .5 : 1,
+                        cursor: 'pointer', zIndex: 1, opacity: ev.done ? .55 : 1,
+                        display: 'flex', flexDirection: 'column', justifyContent: 'flex-start',
                       }}
                     >
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: ev.color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        {ev.done ? '☑' : '☐'} {formatHour(ev.start_hour)}–{formatHour(ev.end_hour)} · {ev.title}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                        <span
+                          onClick={e => { e.stopPropagation(); onToggleDone(ev) }}
+                          style={{ flexShrink: 0, color: ev.done ? '#06D6A0' : 'rgba(255,255,255,.8)', fontSize: '12px', cursor: 'pointer', lineHeight: 1 }}
+                        >{ev.done ? '☑' : '☐'}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textDecoration: ev.done ? 'line-through' : 'none' }}>
+                          {ev.title}
+                        </span>
                       </div>
+                      {tall && (
+                        <div style={{ fontSize: '10px', color: `${ev.color}cc`, fontWeight: 600, marginTop: '1px' }}>
+                          {formatHour(ev.start_hour)}–{formatHour(ev.end_hour)}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -548,11 +566,12 @@ function WeekView({ wkStart, showWeekends, filter, events, branches, onEventClic
 
 // ─── Day View ──────────────────────────────────────────────────────────────────
 
-function DayView({ day, events, filter, onEventClick }: {
+function DayView({ day, events, filter, onEventClick, onToggleDone }: {
   day: string
   events: Event[]
   filter: string
   onEventClick: (ev: Event) => void
+  onToggleDone: (ev: Event) => void
 }) {
   function filterEvent(ev: Event) {
     if (filter === 'done') return ev.done
@@ -591,11 +610,17 @@ function DayView({ day, events, filter, onEventClick }: {
                   opacity: ev.done ? .55 : 1,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#e8e8f0', textDecoration: ev.done ? 'line-through' : 'none' }}>
-                    {ev.title}
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: pb.bg, color: pb.color, letterSpacing: '.04em' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                    <span
+                      onClick={e => { e.stopPropagation(); onToggleDone(ev) }}
+                      style={{ flexShrink: 0, color: ev.done ? '#06D6A0' : 'rgba(255,255,255,.6)', fontSize: '16px', cursor: 'pointer', lineHeight: 1 }}
+                    >{ev.done ? '☑' : '☐'}</span>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: ev.done ? 'rgba(255,255,255,.45)' : '#fff', textDecoration: ev.done ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.title}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: pb.bg, color: pb.color, letterSpacing: '.04em', flexShrink: 0 }}>
                     {pb.label}
                   </span>
                 </div>
@@ -616,13 +641,14 @@ function DayView({ day, events, filter, onEventClick }: {
 
 // ─── Month View ────────────────────────────────────────────────────────────────
 
-function MonthView({ monView, showWeekends, filter, events, onEventClick, onDateClick }: {
+function MonthView({ monView, showWeekends, filter, events, onEventClick, onDateClick, onToggleDone }: {
   monView: string
   showWeekends: boolean
   filter: string
   events: Event[]
   onEventClick: (ev: Event) => void
   onDateClick: (date: string) => void
+  onToggleDone: (ev: Event) => void
 }) {
   const today = todayStr()
   const [y, m] = monView.split('-').map(Number)
@@ -695,14 +721,20 @@ function MonthView({ monView, showWeekends, filter, events, onEventClick, onDate
                   onClick={e => { e.stopPropagation(); onEventClick(ev) }}
                   style={{
                     borderLeft: `2px solid ${ev.color}`,
-                    background: `${ev.color}18`,
-                    borderRadius: '3px', padding: '2px 5px',
-                    fontSize: '11px', color: '#e8e8f0',
+                    background: ev.done ? `${ev.color}10` : `${ev.color}28`,
+                    borderRadius: '4px', padding: '2px 5px',
+                    fontSize: '11px', fontWeight: 600, color: ev.done ? 'rgba(255,255,255,.35)' : '#fff',
                     overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                    marginBottom: '2px', opacity: ev.done ? .5 : 1,
+                    marginBottom: '2px', opacity: ev.done ? .6 : 1,
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    textDecoration: ev.done ? 'line-through' : 'none',
                   }}
                 >
-                  {ev.title}
+                  <span
+                    onClick={e => { e.stopPropagation(); onToggleDone(ev) }}
+                    style={{ flexShrink: 0, fontSize: '11px', color: ev.done ? '#06D6A0' : 'rgba(255,255,255,.6)', cursor: 'pointer', lineHeight: 1 }}
+                  >{ev.done ? '☑' : '☐'}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
                 </div>
               ))}
               {dayEvents.length > 3 && (
@@ -806,6 +838,12 @@ export default function ScheduleClient({
 
   function onDeleted(id: string) {
     setEvents(prev => prev.filter(e => e.id !== id))
+  }
+
+  async function handleToggleDone(ev: Event) {
+    const newDone = !ev.done
+    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, done: newDone } : e))
+    await supabase.from('events').update({ done: newDone }).eq('id', ev.id)
   }
 
   const btnStyle = (active: boolean): React.CSSProperties => ({
@@ -943,17 +981,20 @@ export default function ScheduleClient({
             wkStart={wkStart} showWeekends={showWeekends} filter={schedFilter}
             events={filteredEvents} branches={branches}
             onEventClick={openModal} onDateClick={handleDateClick}
+            onToggleDone={handleToggleDone}
           />
         )}
         {calMode === 'day' && (
           <DayView
-            day={dayView} events={filteredEvents} filter={schedFilter} onEventClick={openModal}
+            day={dayView} events={filteredEvents} filter={schedFilter}
+            onEventClick={openModal} onToggleDone={handleToggleDone}
           />
         )}
         {calMode === 'month' && (
           <MonthView
             monView={monView} showWeekends={showWeekends} filter={schedFilter}
             events={filteredEvents} onEventClick={openModal} onDateClick={handleDateClick}
+            onToggleDone={handleToggleDone}
           />
         )}
       </div>
