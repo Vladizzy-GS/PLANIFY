@@ -244,6 +244,9 @@ export default function AdminDashboardClient({
   const [customTo, setCustomTo] = useState(today)
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null) // null = all
   const [compareMode, setCompareMode] = useState(false)
+  const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
+  const [comparePage, setComparePage] = useState(0)
+  const COMPARE_PAGE_SIZE = 3
 
   // Compute active date range
   const { dateFrom, dateTo } = useMemo(() => {
@@ -256,10 +259,20 @@ export default function AdminDashboardClient({
 
   // Employees to display
   const displayEmps = useMemo(() => {
-    if (compareMode) return activeEmps
+    if (compareMode) {
+      const ids = compareSelectedIds.length > 0 ? compareSelectedIds : activeEmps.map(e => e.id)
+      return activeEmps.filter(e => ids.includes(e.id))
+    }
     if (selectedEmpId) return activeEmps.filter(e => e.id === selectedEmpId)
     return activeEmps
-  }, [compareMode, selectedEmpId, activeEmps])
+  }, [compareMode, compareSelectedIds, selectedEmpId, activeEmps])
+
+  // Paged employees for compare mode
+  const comparePageEmps = useMemo(() => {
+    const start = comparePage * COMPARE_PAGE_SIZE
+    return displayEmps.slice(start, start + COMPARE_PAGE_SIZE)
+  }, [displayEmps, comparePage, COMPARE_PAGE_SIZE])
+  const totalComparePages = Math.ceil(displayEmps.length / COMPARE_PAGE_SIZE)
 
   // Per-employee stats
   const statsMap = useMemo(() => {
@@ -295,7 +308,7 @@ export default function AdminDashboardClient({
   })
 
   return (
-    <div style={{ padding: '24px 28px', color: 'var(--text-primary)', maxWidth: '1200px' }}>
+    <div style={{ padding: '24px 28px', color: 'var(--text-primary)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -312,38 +325,72 @@ export default function AdminDashboardClient({
       <div style={{ ...card, padding: '14px 16px', marginBottom: '18px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
 
         {/* Employee selector */}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button
-            onClick={() => { setSelectedEmpId(null); setCompareMode(false) }}
-            style={qBtn(!selectedEmpId && !compareMode)}
-          >
-            Tous
-          </button>
-          {activeEmps.map(emp => (
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {!compareMode && (
             <button
-              key={emp.id}
-              onClick={() => { setSelectedEmpId(emp.id); setCompareMode(false) }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '5px 10px', borderRadius: '8px', cursor: 'pointer',
-                border: `1px solid ${selectedEmpId === emp.id && !compareMode ? 'var(--text-secondary)' : 'var(--border-subtle)'}`,
-                background: selectedEmpId === emp.id && !compareMode ? 'var(--bg-hover)' : 'transparent',
-                fontSize: '12px', fontWeight: 700, color: selectedEmpId === emp.id && !compareMode ? 'var(--text-primary)' : 'var(--text-secondary)',
-              }}
+              onClick={() => { setSelectedEmpId(null); setCompareMode(false) }}
+              style={qBtn(!selectedEmpId && !compareMode)}
             >
-              <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: emp.avatar_gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff' }}>
-                {emp.initials}
-              </div>
-              {emp.name.split(' ')[0]}
+              Tous
             </button>
-          ))}
+          )}
+          {activeEmps.map(emp => {
+            const isSelectedSingle = selectedEmpId === emp.id && !compareMode
+            const isInCompare = compareSelectedIds.length === 0 ? true : compareSelectedIds.includes(emp.id)
+            const active = compareMode ? isInCompare : isSelectedSingle
+            return (
+              <button
+                key={emp.id}
+                onClick={() => {
+                  if (compareMode) {
+                    // toggle in/out of compare selection
+                    setCompareSelectedIds(prev => {
+                      const base = prev.length === 0 ? activeEmps.map(e => e.id) : prev
+                      const next = base.includes(emp.id)
+                        ? base.filter(id => id !== emp.id)
+                        : [...base, emp.id]
+                      return next.length < 1 ? base : next
+                    })
+                    setComparePage(0)
+                  } else {
+                    setSelectedEmpId(emp.id)
+                    setCompareMode(false)
+                  }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '5px 10px', borderRadius: '8px', cursor: 'pointer',
+                  border: `1px solid ${active ? 'var(--text-secondary)' : 'var(--border-subtle)'}`,
+                  background: active ? 'var(--bg-hover)' : 'transparent',
+                  fontSize: '12px', fontWeight: 700, color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  opacity: compareMode && !isInCompare ? 0.45 : 1,
+                }}
+              >
+                <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: emp.avatar_gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff' }}>
+                  {emp.initials}
+                </div>
+                {emp.name.split(' ')[0]}
+                {compareMode && (
+                  <span style={{ fontSize: '10px', color: isInCompare ? '#06D6A0' : 'var(--text-muted)' }}>{isInCompare ? '✓' : '+'}</span>
+                )}
+              </button>
+            )
+          })}
           {activeEmps.length > 1 && (
             <button
-              onClick={() => { setCompareMode(c => !c); setSelectedEmpId(null) }}
-              style={{
-                ...qBtn(compareMode),
-                display: 'flex', alignItems: 'center', gap: '5px',
+              onClick={() => {
+                if (compareMode) {
+                  setCompareMode(false)
+                  setCompareSelectedIds([])
+                  setComparePage(0)
+                } else {
+                  setCompareMode(true)
+                  setCompareSelectedIds([])
+                  setComparePage(0)
+                  setSelectedEmpId(null)
+                }
               }}
+              style={{ ...qBtn(compareMode), display: 'flex', alignItems: 'center', gap: '5px' }}
             >
               ⇄ Comparer
             </button>
@@ -406,13 +453,45 @@ export default function AdminDashboardClient({
       {/* Employee panels */}
       {compareMode ? (
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>Comparaison des employés</div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${displayEmps.length}, 1fr)`, gap: '14px' }}>
-            {displayEmps.map(emp => {
+          {/* Compare header + pagination */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+              Comparaison · {displayEmps.length} employé{displayEmps.length > 1 ? 's' : ''}
+              {totalComparePages > 1 && ` · page ${comparePage + 1}/${totalComparePages}`}
+            </div>
+            {totalComparePages > 1 && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  onClick={() => setComparePage(p => Math.max(0, p - 1))}
+                  disabled={comparePage === 0}
+                  style={{ padding: '5px 10px', borderRadius: '7px', border: '1px solid var(--border-normal)', background: 'transparent', color: comparePage === 0 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: comparePage === 0 ? 'default' : 'pointer', fontSize: '14px', opacity: comparePage === 0 ? 0.4 : 1 }}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalComparePages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setComparePage(i)}
+                    style={{ width: '28px', height: '28px', borderRadius: '7px', border: `1px solid ${i === comparePage ? 'rgba(76,201,240,.5)' : 'var(--border-normal)'}`, background: i === comparePage ? 'rgba(76,201,240,.12)' : 'transparent', color: i === comparePage ? '#4CC9F0' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setComparePage(p => Math.min(totalComparePages - 1, p + 1))}
+                  disabled={comparePage === totalComparePages - 1}
+                  style={{ padding: '5px 10px', borderRadius: '7px', border: '1px solid var(--border-normal)', background: 'transparent', color: comparePage === totalComparePages - 1 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: comparePage === totalComparePages - 1 ? 'default' : 'pointer', fontSize: '14px', opacity: comparePage === totalComparePages - 1 ? 0.4 : 1 }}
+                >
+                  ›
+                </button>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(comparePageEmps.length, COMPARE_PAGE_SIZE)}, 1fr)`, gap: '14px' }}>
+            {comparePageEmps.map(emp => {
               const s = statsMap.get(emp.id)!
               return (
                 <div key={emp.id}>
-                  {/* Comparison header bar */}
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: emp.avatar_gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff' }}>{emp.initials}</div>
                     <div style={{ flex: 1 }}>
@@ -434,7 +513,17 @@ export default function AdminDashboardClient({
           <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
             {selectedEmpId ? `Détail · ${displayEmps[0]?.name ?? ''}` : `Performance des employés · ${fmt(dateFrom)} → ${fmt(dateTo)}`}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: selectedEmpId ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '14px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: selectedEmpId
+              ? '1fr'
+              : displayEmps.length === 1
+                ? '1fr'
+                : displayEmps.length === 2
+                  ? 'repeat(2, 1fr)'
+                  : 'repeat(3, 1fr)',
+            gap: '14px'
+          }}>
             {displayEmps.map(emp => {
               const s = statsMap.get(emp.id)!
               return (
