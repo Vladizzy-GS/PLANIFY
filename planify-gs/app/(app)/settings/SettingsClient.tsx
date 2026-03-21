@@ -17,7 +17,7 @@ const GRADIENTS = [
   'linear-gradient(135deg,#7B2FBE,#FF4D6D)',
   'linear-gradient(135deg,#EF233C,#7B2FBE)',
 ]
-const EMPTY_EMP = { name: '', initials: '', email: '', phone: '', role_title: '', avatar_gradient: GRADIENTS[0], is_active: true }
+const EMPTY_EMP = { name: '', initials: '', email: '', phone: '', role_title: '', avatar_gradient: GRADIENTS[0], is_active: true, role: 'employee' as 'employee' | 'admin' | 'superuser' }
 
 export default function SettingsClient({
   userEmail, displayName, role, initialEmployees, currentPin,
@@ -58,7 +58,7 @@ export default function SettingsClient({
   function openAdd() { setEditing(null); setForm({ ...EMPTY_EMP }); setErr(''); setShowModal(true) }
   function openEdit(emp: Employee) {
     setEditing(emp)
-    setForm({ name: emp.name, initials: emp.initials, email: emp.email ?? '', phone: emp.phone ?? '', role_title: emp.role_title ?? '', avatar_gradient: emp.avatar_gradient, is_active: emp.is_active })
+    setForm({ name: emp.name, initials: emp.initials, email: emp.email ?? '', phone: emp.phone ?? '', role_title: emp.role_title ?? '', avatar_gradient: emp.avatar_gradient, is_active: emp.is_active, role: 'employee' })
     setErr(''); setShowModal(true)
   }
 
@@ -275,9 +275,26 @@ export default function SettingsClient({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input required placeholder="Nom complet *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="modal-inp" />
               <input required maxLength={3} placeholder="Initiales * (ex: SV)" value={form.initials} onChange={e => setForm(f => ({ ...f, initials: e.target.value.toUpperCase() }))} className="modal-inp" />
-              <input placeholder="Titre / rôle" value={form.role_title ?? ''} onChange={e => setForm(f => ({ ...f, role_title: e.target.value }))} className="modal-inp" />
+              <input placeholder="Titre / poste" value={form.role_title ?? ''} onChange={e => setForm(f => ({ ...f, role_title: e.target.value }))} className="modal-inp" />
               <input placeholder="Courriel" type="email" value={form.email ?? ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="modal-inp" />
               <input placeholder="Téléphone" value={form.phone ?? ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="modal-inp" />
+              {!editing && (
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Autorisation</div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {([
+                      { val: 'employee', label: 'Employé',   color: 'var(--text-secondary)' },
+                      { val: 'admin',    label: 'Admin',      color: '#FFB703' },
+                      { val: 'superuser',label: 'Superuser',  color: '#FF4D6D' },
+                    ] as const).map(({ val, label, color }) => (
+                      <button key={val} type="button"
+                        onClick={() => setForm(f => ({ ...f, role: val }))}
+                        style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', border: `1.5px solid ${form.role === val ? color : 'var(--border-normal)'}`, background: form.role === val ? `${color}18` : 'transparent', color: form.role === val ? color : 'var(--text-muted)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Couleur avatar</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
