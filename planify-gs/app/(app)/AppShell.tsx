@@ -377,6 +377,7 @@ export default function AppShell({
 
   // ─── Employee creation modal ─────────────────────────────────────────────────
   const [localEmps, setLocalEmps] = useState(employees)
+  const [empsOpen, setEmpsOpen] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const GRADS = [
     'linear-gradient(135deg,#FF4D6D,#F77F00)',
@@ -386,7 +387,8 @@ export default function AppShell({
     'linear-gradient(135deg,#7B2FBE,#FF4D6D)',
     'linear-gradient(135deg,#EF233C,#7B2FBE)',
   ]
-  const [addForm, setAddForm] = useState({ name: '', initials: '', role_title: '', email: '', phone: '', avatar_gradient: 'linear-gradient(135deg,#FF4D6D,#F77F00)' })
+  const BLANK_FORM = { name: '', initials: '', role_title: '', email: '', phone: '', avatar_gradient: GRADS[0], role: 'employee' as 'employee' | 'admin' | 'superuser' }
+  const [addForm, setAddForm] = useState(BLANK_FORM)
   const [addSaving, setAddSaving] = useState(false)
   const [addErr, setAddErr] = useState('')
 
@@ -394,11 +396,11 @@ export default function AppShell({
     e.preventDefault(); setAddSaving(true); setAddErr('')
     try {
       const res = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) })
-      if (!res.ok) throw new Error((await res.json()).error)
-      const created = await res.json()
-      setLocalEmps(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setLocalEmps(prev => [...prev, json].sort((a, b) => a.name.localeCompare(b.name)))
       setAddOpen(false)
-      setAddForm({ name: '', initials: '', role_title: '', email: '', phone: '', avatar_gradient: GRADS[0] })
+      setAddForm(BLANK_FORM)
       router.refresh()
     } catch (e: unknown) { setAddErr(e instanceof Error ? e.message : 'Erreur') }
     setAddSaving(false)
@@ -534,7 +536,14 @@ export default function AppShell({
         <div style={collapsed ? { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } : st.section}>
           {!collapsed && (
             <div style={st.sectionLabel}>
-              <span>Employés</span>
+              <button
+                onClick={() => localEmps.length >= 2 && setEmpsOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, cursor: localEmps.length >= 2 ? 'pointer' : 'default', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}
+                title={localEmps.length >= 2 ? (empsOpen ? 'Réduire' : 'Développer') : undefined}
+              >
+                {localEmps.length >= 2 && <span style={{ fontSize: '9px', lineHeight: 1 }}>{empsOpen ? '▾' : '▸'}</span>}
+                Employés
+              </button>
               {isAdmin && (
                 <button
                   onClick={() => setAddOpen(true)}
@@ -544,7 +553,7 @@ export default function AppShell({
               )}
             </div>
           )}
-          {localEmps.map(emp => (
+          {(collapsed || empsOpen) && localEmps.map(emp => (
             collapsed ? (
               <div key={emp.id} style={{ ...avatarStyle(emp.avatar_gradient), cursor: isAdmin ? 'pointer' : 'default', border: isAdmin && selectedEmployeeId === emp.id ? '2px solid var(--text-primary)' : '2px solid transparent' }} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined} title={emp.name}>
                 {emp.initials}
@@ -713,9 +722,24 @@ export default function AppShell({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input required placeholder="Nom complet *" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} className="modal-inp" />
               <input required maxLength={3} placeholder="Initiales * (ex: SV)" value={addForm.initials} onChange={e => setAddForm(f => ({ ...f, initials: e.target.value.toUpperCase() }))} className="modal-inp" />
-              <input placeholder="Titre / rôle" value={addForm.role_title} onChange={e => setAddForm(f => ({ ...f, role_title: e.target.value }))} className="modal-inp" />
+              <input placeholder="Titre / poste" value={addForm.role_title} onChange={e => setAddForm(f => ({ ...f, role_title: e.target.value }))} className="modal-inp" />
               <input placeholder="Courriel" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} className="modal-inp" />
               <input placeholder="Téléphone" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} className="modal-inp" />
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Autorisation</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {([
+                    { val: 'employee', label: 'Employé', color: 'var(--text-secondary)' },
+                    { val: 'admin',    label: 'Admin',    color: '#FFB703' },
+                    { val: 'superuser',label: 'Superuser', color: '#FF4D6D' },
+                  ] as const).map(({ val, label, color }) => (
+                    <button key={val} type="button"
+                      onClick={() => setAddForm(f => ({ ...f, role: val }))}
+                      style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', border: `1.5px solid ${addForm.role === val ? color : 'var(--border-normal)'}`, background: addForm.role === val ? `${color}18` : 'transparent', color: addForm.role === val ? color : 'var(--text-muted)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Couleur avatar</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

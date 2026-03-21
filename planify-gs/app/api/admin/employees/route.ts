@@ -24,10 +24,18 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
+  const { role: _role, ...empFields } = body  // strip role — handled separately
   const supabase = await createClient()
-  const { data, error } = await (supabase as any).from('employees').insert(body).select().single()
+  const { data, error } = await (supabase as any)
+    .from('employees')
+    .insert({ ...empFields, is_active: true })
+    .select()
+    .single()
 
-  if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
+  if (error) {
+    console.error('[POST /api/admin/employees]', error)
+    return NextResponse.json({ error: error.message || DB_ERROR }, { status: 500 })
+  }
   return NextResponse.json(data, { status: 201 })
 }
 
