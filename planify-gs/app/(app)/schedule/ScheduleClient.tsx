@@ -221,7 +221,7 @@ function EventModal({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={lbl}>Date début *</label>
-              <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} style={inp} />
+              <input type="date" value={form.start_date} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, start_date: v, end_date: v >= f.end_date ? v : f.end_date })) }} style={inp} />
             </div>
             <div>
               <label style={lbl}>Date fin</label>
