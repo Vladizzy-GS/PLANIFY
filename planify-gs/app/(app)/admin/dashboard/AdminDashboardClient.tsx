@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Employee, Branch, Priority, Alert } from '@/types/database'
 
 type EventRow = {
@@ -247,6 +247,34 @@ export default function AdminDashboardClient({
   const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
   const [comparePage, setComparePage] = useState(0)
   const COMPARE_PAGE_SIZE = 3
+
+  // ── Employee scroll carousel ───────────────────────────────────────────────
+  const empScrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const updateScrollArrows = useCallback(() => {
+    const el = empScrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    const el = empScrollRef.current
+    if (!el) return
+    updateScrollArrows()
+    el.addEventListener('scroll', updateScrollArrows)
+    const ro = new ResizeObserver(updateScrollArrows)
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', updateScrollArrows); ro.disconnect() }
+  }, [updateScrollArrows])
+
+  const scrollEmps = (dir: 'left' | 'right') => {
+    const el = empScrollRef.current
+    if (!el) return
+    el.scrollBy({ left: dir === 'left' ? -320 : 320, behavior: 'smooth' })
+  }
 
   // Compute active date range
   const { dateFrom, dateTo } = useMemo(() => {
@@ -513,28 +541,57 @@ export default function AdminDashboardClient({
           <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
             {selectedEmpId ? `Détail · ${displayEmps[0]?.name ?? ''}` : `Performance des employés · ${fmt(dateFrom)} → ${fmt(dateTo)}`}
           </div>
-          <div style={{
-            display: 'flex',
-            flexWrap: selectedEmpId || displayEmps.length < 3 ? 'wrap' : 'nowrap',
-            overflowX: !selectedEmpId && displayEmps.length >= 3 ? 'auto' : 'visible',
-            gap: '14px',
-            paddingBottom: !selectedEmpId && displayEmps.length >= 3 ? '6px' : '0',
-          }}>
-            {displayEmps.map(emp => {
-              const s = statsMap.get(emp.id)!
-              const cardWidth = selectedEmpId
-                ? '100%'
-                : displayEmps.length === 1
+          <div style={{ position: 'relative' }}>
+            {/* Left arrow */}
+            {!selectedEmpId && displayEmps.length >= 3 && canScrollLeft && (
+              <button onClick={() => scrollEmps('left')} style={{
+                position: 'absolute', left: '-14px', top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: '32px', height: '32px', borderRadius: '50%',
+                background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: '14px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}>‹</button>
+            )}
+            {/* Right arrow */}
+            {!selectedEmpId && displayEmps.length >= 3 && canScrollRight && (
+              <button onClick={() => scrollEmps('right')} style={{
+                position: 'absolute', right: '-14px', top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: '32px', height: '32px', borderRadius: '50%',
+                background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: '14px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}>›</button>
+            )}
+            <div
+              ref={empScrollRef}
+              className="emp-carousel"
+              style={{
+                display: 'flex',
+                flexWrap: selectedEmpId || displayEmps.length < 3 ? 'wrap' : 'nowrap',
+                overflowX: !selectedEmpId && displayEmps.length >= 3 ? 'scroll' : 'visible',
+                gap: '14px',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+            >
+              {displayEmps.map(emp => {
+                const s = statsMap.get(emp.id)!
+                const cardWidth = selectedEmpId
                   ? '100%'
-                  : displayEmps.length === 2
-                    ? 'calc(50% - 7px)'
-                    : 'calc(33.333% - 10px)'
-              return (
-                <div key={emp.id} style={{ flex: `0 0 ${cardWidth}`, minWidth: displayEmps.length >= 3 && !selectedEmpId ? 'calc(33.333% - 10px)' : undefined }}>
-                  <EmpPanel emp={emp} stats={s} branches={branches} priorities={priorities.filter(p => p.employee_id === emp.id)} allPriorities={priorities} alerts={allAlerts.filter(a => a.employee_id === emp.id)} compact={!selectedEmpId} />
-                </div>
-              )
-            })}
+                  : displayEmps.length === 1
+                    ? '100%'
+                    : displayEmps.length === 2
+                      ? 'calc(50% - 7px)'
+                      : 'calc(33.333% - 10px)'
+                return (
+                  <div key={emp.id} style={{ flex: `0 0 ${cardWidth}`, minWidth: displayEmps.length >= 3 && !selectedEmpId ? 'calc(33.333% - 10px)' : undefined }}>
+                    <EmpPanel emp={emp} stats={s} branches={branches} priorities={priorities.filter(p => p.employee_id === emp.id)} allPriorities={priorities} alerts={allAlerts.filter(a => a.employee_id === emp.id)} compact={!selectedEmpId} />
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
