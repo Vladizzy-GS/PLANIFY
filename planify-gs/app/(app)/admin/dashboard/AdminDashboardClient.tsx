@@ -514,20 +514,25 @@ export default function AdminDashboardClient({
             {selectedEmpId ? `Détail · ${displayEmps[0]?.name ?? ''}` : `Performance des employés · ${fmt(dateFrom)} → ${fmt(dateTo)}`}
           </div>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: selectedEmpId
-              ? '1fr'
-              : displayEmps.length === 1
-                ? '1fr'
-                : displayEmps.length === 2
-                  ? 'repeat(2, 1fr)'
-                  : 'repeat(3, 1fr)',
-            gap: '14px'
+            display: 'flex',
+            flexWrap: selectedEmpId || displayEmps.length < 3 ? 'wrap' : 'nowrap',
+            overflowX: !selectedEmpId && displayEmps.length >= 3 ? 'auto' : 'visible',
+            gap: '14px',
+            paddingBottom: !selectedEmpId && displayEmps.length >= 3 ? '6px' : '0',
           }}>
             {displayEmps.map(emp => {
               const s = statsMap.get(emp.id)!
+              const cardWidth = selectedEmpId
+                ? '100%'
+                : displayEmps.length === 1
+                  ? '100%'
+                  : displayEmps.length === 2
+                    ? 'calc(50% - 7px)'
+                    : 'calc(33.333% - 10px)'
               return (
-                <EmpPanel key={emp.id} emp={emp} stats={s} branches={branches} priorities={priorities.filter(p => p.employee_id === emp.id)} allPriorities={priorities} alerts={allAlerts.filter(a => a.employee_id === emp.id)} compact={!selectedEmpId} />
+                <div key={emp.id} style={{ flex: `0 0 ${cardWidth}`, minWidth: displayEmps.length >= 3 && !selectedEmpId ? 'calc(33.333% - 10px)' : undefined }}>
+                  <EmpPanel emp={emp} stats={s} branches={branches} priorities={priorities.filter(p => p.employee_id === emp.id)} allPriorities={priorities} alerts={allAlerts.filter(a => a.employee_id === emp.id)} compact={!selectedEmpId} />
+                </div>
               )
             })}
           </div>
