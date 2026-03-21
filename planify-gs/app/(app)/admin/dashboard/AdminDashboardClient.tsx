@@ -273,7 +273,18 @@ export default function AdminDashboardClient({
   const scrollEmps = (dir: 'left' | 'right') => {
     const el = empScrollRef.current
     if (!el) return
-    el.scrollBy({ left: dir === 'left' ? -320 : 320, behavior: 'smooth' })
+    // Snap to next card boundary: find card width from first child
+    const firstCard = el.firstElementChild as HTMLElement | null
+    if (!firstCard) return
+    const cardW = firstCard.getBoundingClientRect().width + 14 // card + gap
+    const current = el.scrollLeft
+    if (dir === 'right') {
+      const nextSnap = Math.floor(current / cardW + 1) * cardW
+      el.scrollTo({ left: nextSnap, behavior: 'smooth' })
+    } else {
+      const prevSnap = Math.ceil(current / cardW - 1) * cardW
+      el.scrollTo({ left: Math.max(0, prevSnap), behavior: 'smooth' })
+    }
   }
 
   // Compute active date range
@@ -545,23 +556,25 @@ export default function AdminDashboardClient({
             {/* Left arrow */}
             {!selectedEmpId && displayEmps.length >= 3 && canScrollLeft && (
               <button onClick={() => scrollEmps('left')} style={{
-                position: 'absolute', left: '-14px', top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: '32px', height: '32px', borderRadius: '50%',
-                background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)', cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', fontSize: '14px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
+                background: 'rgba(99,102,241,0.85)', border: '2px solid rgba(139,142,255,0.6)',
+                color: '#fff', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700,
+                boxShadow: '0 4px 16px rgba(99,102,241,0.5)',
+                lineHeight: 1,
               }}>‹</button>
             )}
             {/* Right arrow */}
             {!selectedEmpId && displayEmps.length >= 3 && canScrollRight && (
               <button onClick={() => scrollEmps('right')} style={{
-                position: 'absolute', right: '-14px', top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: '32px', height: '32px', borderRadius: '50%',
-                background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)', cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', fontSize: '14px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
+                background: 'rgba(99,102,241,0.85)', border: '2px solid rgba(139,142,255,0.6)',
+                color: '#fff', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700,
+                boxShadow: '0 4px 16px rgba(99,102,241,0.5)',
+                lineHeight: 1,
               }}>›</button>
             )}
             <div
