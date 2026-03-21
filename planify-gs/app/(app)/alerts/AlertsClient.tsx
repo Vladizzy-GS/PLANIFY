@@ -27,8 +27,9 @@ const EMPTY_FORM = {
   title: '',
   message: '',
   alert_type: 'information' as 'urgent' | 'information',
-  category: '' as Alert['category'],
-  alert_date: '',
+  categories: [] as string[],
+  alert_start: '',
+  alert_end: '',
   employee_id: '' as string,
 }
 
@@ -63,20 +64,29 @@ function AlertModal({ open, onClose, onSaved, employees }: {
 
     // Map UI type to DB type
     const dbAlertType = form.alert_type === 'urgent' ? 'warn' : 'info'
-    // Map category to link_type
+    // Serialize categories as comma-separated string
+    const dbCategory = form.categories.join(',')
+    // Map first category to link_type (for legacy compatibility)
+    const firstCat = form.categories[0] ?? ''
     const dbLinkType: Alert['link_type'] =
-      form.category === 'Horaire' ? 'event'
-      : form.category === 'Tache' ? 'task'
-      : form.category === 'Priorité' ? 'priority'
+      firstCat === 'Horaire' ? 'event'
+      : firstCat === 'Tache' ? 'task'
+      : firstCat === 'Priorité' ? 'priority'
       : ''
+    // Serialize date range: "YYYY-MM-DD" or "YYYY-MM-DD/YYYY-MM-DD"
+    const dbDate = form.alert_start
+      ? (form.alert_end && form.alert_end > form.alert_start
+          ? `${form.alert_start}/${form.alert_end}`
+          : form.alert_start)
+      : null
 
     const { data, error } = await supabase.from('alerts').insert({
       title: form.title.trim(),
       message: form.message,
       alert_type: dbAlertType,
-      alert_date: form.alert_date || null,
+      alert_date: dbDate,
       frequency: 'once',
-      category: form.category,
+      category: dbCategory,
       add_to_schedule: false,
       employee_id: targetEmpId,
       link_type: dbLinkType,
@@ -105,11 +115,20 @@ function AlertModal({ open, onClose, onSaved, employees }: {
     textTransform: 'uppercase', marginBottom: '6px',
   }
 
-  const CATEGORIES: { value: Alert['category']; label: string; color: string }[] = [
+  const CATEGORIES: { value: string; label: string; color: string }[] = [
     { value: 'Horaire',  label: '📅 Horaire',  color: '#06D6A0' },
     { value: 'Tache',    label: '☑ Tâche',    color: '#F77F00' },
     { value: 'Priorité', label: '⚡ Priorité', color: '#4CC9F0' },
   ]
+
+  function toggleCategory(val: string) {
+    setForm(f => ({
+      ...f,
+      categories: f.categories.includes(val)
+        ? f.categories.filter(c => c !== val)
+        : [...f.categories, val],
+    }))
+  }
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -133,23 +152,26 @@ function AlertModal({ open, onClose, onSaved, employees }: {
             <textarea value={form.message} onChange={e => set('message', e.target.value)} style={{ ...inp, resize: 'vertical', minHeight: '70px' }} placeholder="Message optionnel…" />
           </div>
 
-          {/* Catégorie */}
+          {/* Catégorie — multi-select */}
           <div>
             <label style={lbl}>Catégorie</label>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat.value}
-                  onClick={() => set('category', form.category === cat.value ? '' : cat.value)}
-                  style={{
-                    flex: 1, padding: '9px 6px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700,
-                    border: `1px solid ${form.category === cat.value ? cat.color : 'rgba(255,255,255,.12)'}`,
-                    background: form.category === cat.value ? `${cat.color}18` : 'rgba(255,255,255,.04)',
-                    color: form.category === cat.value ? cat.color : 'rgba(255,255,255,.5)',
-                    transition: 'all .15s',
-                  }}
-                >{cat.label}</button>
-              ))}
+              {CATEGORIES.map(cat => {
+                const active = form.categories.includes(cat.value)
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => toggleCategory(cat.value)}
+                    style={{
+                      flex: 1, padding: '9px 6px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700,
+                      border: `1px solid ${active ? cat.color : 'rgba(255,255,255,.12)'}`,
+                      background: active ? `${cat.color}18` : 'rgba(255,255,255,.04)',
+                      color: active ? cat.color : 'rgba(255,255,255,.5)',
+                      transition: 'all .15s',
+                    }}
+                  >{cat.label}</button>
+                )
+              })}
             </div>
           </div>
 
@@ -193,10 +215,17 @@ function AlertModal({ open, onClose, onSaved, employees }: {
             </div>
           )}
 
-          {/* Date */}
+          {/* Date range */}
           <div>
-            <label style={lbl}>Date</label>
-            <input type="date" value={form.alert_date} onChange={e => set('alert_date', e.target.value)} style={inp} />
+            <label style={lbl}>Période</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
+              <input type="date" value={form.alert_start} onChange={e => setForm(f => ({ ...f, alert_start: e.target.value, alert_end: f.alert_end && f.alert_end < e.target.value ? '' : f.alert_end }))} style={inp} />
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.3)', fontWeight: 600, textAlign: 'center' }}>→</span>
+              <input type="date" value={form.alert_end} min={form.alert_start || undefined} onChange={e => setForm(f => ({ ...f, alert_end: e.target.value }))} style={inp} />
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.25)', marginTop: '5px' }}>
+              Laissez vide pour une alerte sans date · La date de fin est optionnelle
+            </div>
           </div>
 
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
@@ -224,8 +253,14 @@ function AlertCard({ alert, onDelete, onMarkRead }: {
   const supabase = createClient()
   const isAdmin = useSessionStore(s => s.isAdmin)
   const tc = alertSeverityColor(alert.alert_type)
-  const catMeta = categoryMeta(alert.category ?? '')
-  const isOverdue = alert.alert_date && alert.alert_date < todayStr() && !alert.is_read
+  // Parse comma-separated categories
+  const catList = (alert.category ?? '').split(',').map(s => s.trim()).filter(Boolean).map(c => categoryMeta(c)).filter(Boolean) as { color: string; label: string }[]
+  // Parse date range: "YYYY-MM-DD" or "YYYY-MM-DD/YYYY-MM-DD"
+  const dateParts = alert.alert_date ? alert.alert_date.split('/') : []
+  const dateStart = dateParts[0] ?? null
+  const dateEnd   = dateParts[1] ?? null
+  const effectiveEnd = dateEnd ?? dateStart
+  const isOverdue = effectiveEnd && effectiveEnd < todayStr() && !alert.is_read
 
   async function markRead() {
     await supabase.from('alerts').update({ is_read: true }).eq('id', alert.id)
@@ -262,19 +297,20 @@ function AlertCard({ alert, onDelete, onMarkRead }: {
             <span style={{ fontSize: '10px', fontWeight: 700, color: tc.color, background: tc.bg, padding: '1px 7px', borderRadius: '6px', letterSpacing: '.04em' }}>
               {tc.label}
             </span>
-            {catMeta && (
-              <span style={{ fontSize: '10px', fontWeight: 700, color: catMeta.color, background: `${catMeta.color}15`, padding: '1px 7px', borderRadius: '6px', letterSpacing: '.04em', border: `1px solid ${catMeta.color}30` }}>
-                {catMeta.label}
+            {catList.map(cm => (
+              <span key={cm.label} style={{ fontSize: '10px', fontWeight: 700, color: cm.color, background: `${cm.color}15`, padding: '1px 7px', borderRadius: '6px', letterSpacing: '.04em', border: `1px solid ${cm.color}30` }}>
+                {cm.label}
               </span>
-            )}
+            ))}
           </div>
           {alert.message && (
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,.5)', marginBottom: '6px', lineHeight: 1.5 }}>{alert.message}</div>
           )}
-          {alert.alert_date && (
+          {dateStart && (
             <div style={{ fontSize: '11px', color: isOverdue ? '#FF4D6D' : 'rgba(255,255,255,.35)', fontWeight: isOverdue ? 700 : 400 }}>
               {isOverdue ? '⚠ En retard · ' : ''}
-              {localDate(alert.alert_date).getDate()}/{localDate(alert.alert_date).getMonth() + 1}/{localDate(alert.alert_date).getFullYear()}
+              {localDate(dateStart).getDate()}/{localDate(dateStart).getMonth() + 1}/{localDate(dateStart).getFullYear()}
+              {dateEnd && ` → ${localDate(dateEnd).getDate()}/${localDate(dateEnd).getMonth() + 1}/${localDate(dateEnd).getFullYear()}`}
             </div>
           )}
         </div>

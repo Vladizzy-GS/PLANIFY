@@ -115,7 +115,7 @@ export type Alert = {
   alert_date: string | null
   time_of_day: string | null
   link_type: '' | 'event' | 'priority' | 'task'
-  category: 'Horaire' | 'Tache' | 'Priorité' | ''
+  category: string   // comma-separated: 'Horaire', 'Tache', 'Priorité' or combinations
   link_id: string | null
   add_to_schedule: boolean
   sms_enabled: boolean
