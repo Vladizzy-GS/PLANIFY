@@ -39,6 +39,6 @@ export async function requireAdmin() {
     .eq('id', user.id)
     .single() as { data: { role: string; employee_id: string | null } | null }
 
-  if (profile?.role !== 'admin') return null
+  if (profile?.role !== 'admin' && profile?.role !== 'superuser') return null
   return { user, profile }
 }

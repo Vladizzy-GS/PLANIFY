@@ -19,7 +19,7 @@ export type Employee = {
 
 export type Profile = {
   id: string
-  role: 'admin' | 'branch_manager' | 'supervisor' | 'employee'
+  role: 'superuser' | 'admin' | 'branch_manager' | 'supervisor' | 'employee'
   employee_id: string | null
   display_name: string | null
   avatar_gradient: string | null

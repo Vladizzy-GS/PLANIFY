@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      role={(profile?.role ?? 'employee') as 'admin' | 'branch_manager' | 'supervisor' | 'employee'}
+      role={(profile?.role ?? 'employee') as 'superuser' | 'admin' | 'branch_manager' | 'supervisor' | 'employee'}
       employeeId={profile?.employee_id ?? null}
       displayName={profile?.display_name ?? null}
       employees={employees}

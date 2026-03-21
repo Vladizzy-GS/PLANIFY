@@ -361,7 +361,8 @@ export default function AppShell({
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const pathname = usePathname()
   const router = useRouter()
-  const isAdmin = role === 'admin'
+  const isAdmin = role === 'admin' || role === 'superuser'
+  const isSuperuser = role === 'superuser'
 
   // ─── Theme — lazy init to avoid FOUC ────────────────────────────────────────
   // Bug fix: previously hardcoded true causing flash for light-mode users
@@ -375,8 +376,9 @@ export default function AppShell({
   })
   const [deplOpen, setDeplOpen] = useState(true)
 
-  // ─── Employee creation modal ─────────────────────────────────────────────────
+  // ─── Employee list — sync when server re-renders after add/delete ────────────
   const [localEmps, setLocalEmps] = useState(employees)
+  useEffect(() => { setLocalEmps(employees) }, [employees])
   const [empsOpen, setEmpsOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const GRADS = [
@@ -425,6 +427,23 @@ export default function AppShell({
   useEffect(() => {
     setSession(role, employeeId)
   }, [role, employeeId, setSession])
+
+  // ─── Real-time presence (superuser-only visibility) ─────────────────────────
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!employeeId) return
+    const supabase = createClient()
+    const ch = supabase.channel('planify-presence', { config: { presence: { key: employeeId } } })
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState<{ employee_id: string }>()
+      const ids = new Set(Object.values(state).flat().map(p => p.employee_id).filter(Boolean))
+      setOnlineIds(ids)
+    })
+    ch.subscribe(async status => {
+      if (status === 'SUBSCRIBED') await ch.track({ employee_id: employeeId })
+    })
+    return () => { supabase.removeChannel(ch) }
+  }, [employeeId])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -556,16 +575,23 @@ export default function AppShell({
           {localEmps.map((emp, idx) => {
             // Always show first 2; extras only when empsOpen (or collapsed icon mode)
             if (!collapsed && idx >= 2 && !empsOpen) return null
+            const isOnline = onlineIds.has(emp.id)
             return collapsed ? (
-              <div key={emp.id} style={{ ...avatarStyle(emp.avatar_gradient), cursor: isAdmin ? 'pointer' : 'default', border: isAdmin && selectedEmployeeId === emp.id ? '2px solid var(--text-primary)' : '2px solid transparent' }} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined} title={emp.name}>
-                {emp.initials}
+              <div key={emp.id} style={{ position: 'relative' as const }}>
+                <div style={{ ...avatarStyle(emp.avatar_gradient), cursor: isAdmin ? 'pointer' : 'default', border: isAdmin && selectedEmployeeId === emp.id ? '2px solid var(--text-primary)' : '2px solid transparent' }} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined} title={emp.name}>
+                  {emp.initials}
+                </div>
+                {isSuperuser && isOnline && <span style={{ position: 'absolute' as const, bottom: '1px', right: '1px', width: '8px', height: '8px', borderRadius: '50%', background: '#06D6A0', border: '1.5px solid var(--bg-sidebar)' }} />}
               </div>
             ) : (
               <div key={emp.id} style={empRowStyle(isAdmin && selectedEmployeeId === emp.id)} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined}>
-                <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
+                <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+                  <div style={avatarStyle(emp.avatar_gradient)}>{emp.initials}</div>
+                  {isSuperuser && isOnline && <span style={{ position: 'absolute' as const, bottom: '0px', right: '0px', width: '9px', height: '9px', borderRadius: '50%', background: '#06D6A0', border: '2px solid var(--bg-sidebar)' }} />}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={st.empName}>{emp.name}</div>
-                  <div style={st.empStatus}>En ligne</div>
+                  {isSuperuser && <div style={{ ...st.empStatus, color: isOnline ? '#06D6A0' : 'var(--text-muted)' }}>{isOnline ? 'En ligne' : 'Hors ligne'}</div>}
                 </div>
                 {isAdmin && (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
