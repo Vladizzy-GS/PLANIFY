@@ -47,7 +47,7 @@ function AlertModal({ open, onClose, onSaved }: {
       frequency: form.frequency,
       add_to_schedule: form.add_to_schedule,
       employee_id: profile?.employee_id ?? null,
-      link_type: '',
+      link_type: '' as const,
       is_read: false,
       is_system: false,
       sms_enabled: false,
