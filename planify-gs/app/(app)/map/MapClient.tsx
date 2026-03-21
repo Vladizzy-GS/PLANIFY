@@ -82,6 +82,45 @@ const inp: React.CSSProperties = {
   color: '#e8e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
 }
 
+// ── Confirm delete modal ────────────────────────────────────
+function ConfirmModal({ name, onConfirm, onCancel }: {
+  name: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#13131f', border: '1px solid rgba(255,77,109,.25)', borderRadius: '18px', padding: '28px 32px', width: '380px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,.7)' }}
+      >
+        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(255,77,109,.12)', border: '1px solid rgba(255,77,109,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', margin: '0 auto 16px' }}>
+          🗑
+        </div>
+        <h3 style={{ fontFamily: 'var(--font-syne)', fontSize: '17px', fontWeight: 800, color: '#e8e8f0', marginBottom: '8px' }}>
+          Supprimer ce fournisseur ?
+        </h3>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,.45)', marginBottom: '24px', lineHeight: 1.5 }}>
+          <span style={{ color: '#e8e8f0', fontWeight: 600 }}>{name}</span> sera supprimé définitivement.
+        </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, padding: '11px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+          >Annuler</button>
+          <button
+            onClick={onConfirm}
+            style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#c0392b)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+          >Supprimer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Address autocomplete field ──────────────────────────────
 function AddressField({
   value, onChange, onSelect, suggestions, label, geocoded,
@@ -212,6 +251,9 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   const [editSaving, setEditSaving] = useState(false)
   const editAddrSearch = useAddressSearch()
 
+  // ── Delete supplier confirm ─────────────────────────────
+  const [confirmDeleteSup, setConfirmDeleteSup] = useState<Supplier | null>(null)
+
   // ── New branch modal ────────────────────────────────────
   const [showNewBranch, setShowNewBranch] = useState(false)
   const [newBranch, setNewBranch] = useState({ ...EMPTY_NEW_BRANCH })
@@ -277,8 +319,15 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
     setSupSaving(false)
   }
 
-  async function handleDeleteSup(id: string) {
-    if (!confirm('Supprimer ce fournisseur ?')) return
+  function handleDeleteSup(id: string) {
+    const sup = suppliers.find(s => s.id === id) ?? null
+    setConfirmDeleteSup(sup)
+  }
+
+  async function doDeleteSup() {
+    if (!confirmDeleteSup) return
+    const { id } = confirmDeleteSup
+    setConfirmDeleteSup(null)
     await supabase.from('suppliers').delete().eq('id', id)
     setSuppliers(prev => prev.filter(s => s.id !== id))
     if (selectedId === id) setSelectedId(null)
@@ -412,6 +461,14 @@ export default function MapClient({ initialSuppliers, branches: initBranches, is
   // ── Render ───────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '24px 28px', gap: '20px', overflow: 'auto' }}>
+
+      {confirmDeleteSup && (
+        <ConfirmModal
+          name={confirmDeleteSup.name}
+          onConfirm={doDeleteSup}
+          onCancel={() => setConfirmDeleteSup(null)}
+        />
+      )}
 
       {/* Header */}
       <div>
