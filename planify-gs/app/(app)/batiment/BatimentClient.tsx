@@ -47,31 +47,30 @@ const FREQ_OPTIONS = ['N/A', '1x', '2x', '4x']
 
 // ─── Period rows for Inspection Bâtiment ─────────────────────────────────────
 
-function buildPeriodRows(years: number[]) {
+const INSP_YEARS = [2025, 2026]
+const MONTH_NAMES = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
+
+function buildPeriodRows(yr: number) {
   const rows: { period: string; period_type: 'annuel' | 'semestriel' | 'mensuel'; label: string }[] = []
-  for (const yr of years) {
-    rows.push({ period: `${yr}`, period_type: 'annuel', label: `${yr}` })
-    rows.push({ period: `${yr}-06`, period_type: 'semestriel', label: `${yr}-06` })
-    rows.push({ period: `${yr}-12`, period_type: 'semestriel', label: `${yr}-12` })
-    for (let m = 1; m <= 12; m++) {
-      const mm = String(m).padStart(2, '0')
-      rows.push({ period: `${yr}-${mm}`, period_type: 'mensuel', label: `${yr}-${mm}` })
-    }
+  rows.push({ period: `${yr}`, period_type: 'annuel', label: 'Annuel' })
+  rows.push({ period: `${yr}-06`, period_type: 'semestriel', label: 'Semi — Juin' })
+  rows.push({ period: `${yr}-12`, period_type: 'semestriel', label: 'Semi — Déc' })
+  for (let m = 1; m <= 12; m++) {
+    const mm = String(m).padStart(2, '0')
+    rows.push({ period: `${yr}-${mm}`, period_type: 'mensuel', label: MONTH_NAMES[m - 1] })
   }
   return rows
 }
 
-const PERIOD_ROWS = buildPeriodRows([2025, 2026])
-
-const ROW_BG: Record<string, string> = {
+const TYPE_COLOR: Record<string, string> = {
   annuel: '#00bcd4',
   semestriel: '#ffd600',
   mensuel: '#4caf50',
 }
-const ROW_TEXT: Record<string, string> = {
-  annuel: '#fff',
-  semestriel: '#000',
-  mensuel: '#fff',
+const TYPE_LABEL: Record<string, string> = {
+  annuel: 'A',
+  semestriel: 'S',
+  mensuel: 'M',
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -238,7 +237,7 @@ export default function BatimentClient({
   lumiereSecours: initLumiere,
   boiteParadox: initParadox,
   reservoirEauChaude: initReservoir,
-  isAdmin,
+  isAdmin: _isAdmin,
 }: Props) {
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('inspection')
@@ -385,58 +384,73 @@ function InspectionBatimentTab({
   getInspDate: (branchId: string, period: string) => string
   saveInspDate: (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => Promise<void>
 }) {
+  const [year, setYear] = useState(2025)
+  const rows = buildPeriodRows(year)
+
   return (
     <div>
-      {/* Legend */}
-      <div style={s.legend}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Légende :</span>
-        {(['annuel', 'semestriel', 'mensuel'] as const).map(type => (
-          <div key={type} style={s.legendItem()}>
-            <div style={s.legendDot(ROW_BG[type])} />
-            <span>{type.toUpperCase()}</span>
+      {/* Year selector + legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
+          {INSP_YEARS.map(y => (
+            <button key={y} onClick={() => setYear(y)} style={{
+              padding: '6px 20px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
+              background: year === y ? '#FF4D6D' : 'transparent',
+              color: year === y ? '#fff' : 'var(--text-muted)',
+            }}>{y}</button>
+          ))}
+        </div>
+        {(['annuel', 'semestriel', 'mensuel'] as const).map(t => (
+          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: TYPE_COLOR[t] }} />
+            <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{t}</span>
           </div>
         ))}
       </div>
-      <div style={s.card}>
-        <table style={s.tbl}>
-          <thead>
-            <tr>
-              <th style={s.thLeft()}>Période</th>
-              {branches.map(b => (
-                <th key={b.id} style={{ ...s.th(b.color + '22', b.color), borderTop: `3px solid ${b.color}` }}>
-                  {b.short_code}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PERIOD_ROWS.map(row => {
-              const bg = ROW_BG[row.period_type]
-              const tc = ROW_TEXT[row.period_type]
-              const isYearRow = row.period_type === 'annuel'
-              return (
-                <tr key={row.period}>
-                  <td style={{ ...s.tdLeft(bg, tc), fontWeight: isYearRow ? 800 : 600, fontSize: isYearRow ? '14px' : '12px' }}>
-                    {row.label}
-                  </td>
-                  {branches.map(b => {
-                    const val = getInspDate(b.id, row.period)
-                    return (
-                      <td key={b.id} style={s.td()}>
-                        <input
-                            type="date"
-                            value={val}
-                            onChange={e => saveInspDate(b.id, row.period, row.period_type, e.target.value)}
-                            style={s.dateInput}
-                          />
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+
+      {/* Card per branch */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+        {branches.map(b => (
+          <div key={b.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '11px 16px', borderBottom: `3px solid ${b.color}`, background: 'var(--bg-panel)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.color, boxShadow: `0 0 6px ${b.color}` }} />
+                <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{b.short_code}</span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{b.name}</span>
+            </div>
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              {rows.map(row => {
+                const val = getInspDate(b.id, row.period)
+                const tc = TYPE_COLOR[row.period_type]
+                const tl = TYPE_LABEL[row.period_type]
+                return (
+                  <div key={row.period} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: tc + '22', border: `1px solid ${tc}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: '9px', fontWeight: 800, color: tc }}>{tl}</span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', minWidth: '80px', flexShrink: 0 }}>{row.label}</span>
+                    <input
+                      type="date"
+                      value={val}
+                      onChange={e => saveInspDate(b.id, row.period, row.period_type, e.target.value)}
+                      style={{
+                        flex: 1, padding: '4px 8px', borderRadius: '6px',
+                        border: val ? `1px solid ${b.color}66` : '1px solid var(--border-subtle)',
+                        background: val ? b.color + '18' : 'var(--bg-panel)',
+                        color: val ? 'var(--text-primary)' : 'var(--text-muted)',
+                        fontSize: '12px', outline: 'none', cursor: 'pointer',
+                      }}
+                    />
+                    {val && (
+                      <button onClick={() => saveInspDate(b.id, row.period, row.period_type, '')} title="Effacer" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px', lineHeight: 1, padding: '0 2px' }}>×</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -468,10 +482,6 @@ function DeneigementTab({
   const [form, setForm] = useState<DenForm>(EMPTY_DEN)
   const [saving, setSaving] = useState(false)
 
-  function openAdd(branchId: string) {
-    setForm(EMPTY_DEN)
-    setModal({ branchId })
-  }
   function openEdit(item: BatimentDeneigement) {
     setForm({ contact_role: item.contact_role, company_name: item.company_name ?? '', contact_name: item.contact_name ?? '', phone: item.phone ?? '' })
     setModal({ branchId: item.branch_id, edit: item })
@@ -506,7 +516,7 @@ function DeneigementTab({
           for (const r of ROLE_ORDER) byRole[r] = items.filter(d => d.contact_role === r)
 
           return (
-            <div key={b.id} style={{ ...s.card, padding: '0', overflow: 'hidden' }}>
+            <div key={b.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
               {/* Branch header */}
               <div style={{ padding: '12px 16px', borderBottom: `3px solid ${b.color}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -515,29 +525,37 @@ function DeneigementTab({
                 </div>
                 <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{b.name}</span>
               </div>
-              <div style={{ padding: '14px' }}>
+              <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {ROLE_ORDER.map(role => {
                   const contacts = byRole[role] ?? []
                   return (
-                    <div key={role} style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                        <div style={{ height: '1px', width: '12px', background: 'var(--border-subtle)' }} />
+                    <div key={role}>
+                      {/* Role header row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                         <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{ROLE_LABELS[role]}</span>
-                        <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                        <button
+                          onClick={() => { setForm({ ...EMPTY_DEN, contact_role: role }); setModal({ branchId: b.id }) }}
+                          style={{ background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '5px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', padding: '2px 7px', lineHeight: 1.4 }}
+                        >+ Ajouter</button>
                       </div>
                       {contacts.length === 0 ? (
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', paddingLeft: '4px' }}>—</div>
+                        <button
+                          onClick={() => { setForm({ ...EMPTY_DEN, contact_role: role }); setModal({ branchId: b.id }) }}
+                          style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px dashed var(--border-subtle)', background: 'transparent', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}
+                        >
+                          Cliquer pour ajouter…
+                        </button>
                       ) : (
                         contacts.map(c => (
-                          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginBottom: '6px', background: 'var(--bg-base)' }}>
-                            <div style={{ fontSize: '12px' }}>
+                          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginBottom: '5px', background: 'var(--bg-base)' }}>
+                            <div style={{ fontSize: '12px', minWidth: 0 }}>
                               {c.company_name && <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1px' }}>{c.company_name}</div>}
                               {c.contact_name && <div style={{ color: 'var(--text-secondary)' }}>{c.contact_name}</div>}
                               {c.phone && <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '1px' }}>{c.phone}</div>}
                             </div>
                             <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                              <button style={s.btnIcon} onClick={() => openEdit(c)}>✎</button>
-                              <button style={{ ...s.btnIcon, color: '#f55' }} onClick={() => del(c.id)}>×</button>
+                              <button style={s.btnIcon} onClick={() => openEdit(c)} title="Modifier">✎</button>
+                              <button style={{ ...s.btnIcon, color: '#f55' }} onClick={() => del(c.id)} title="Supprimer">×</button>
                             </div>
                           </div>
                         ))
@@ -545,7 +563,6 @@ function DeneigementTab({
                     </div>
                   )
                 })}
-                <button style={{ ...s.btnSm, marginTop: '4px', width: '100%' }} onClick={() => openAdd(b.id)}>+ Ajouter contact</button>
               </div>
             </div>
           )
@@ -714,7 +731,6 @@ function GenericDateTab({
   supabase: ReturnType<typeof createClient>
 }) {
   const [modal, setModal] = useState<{ branchId: string } | null>(null)
-  const [editRow, setEditRow] = useState<{ id: string; inspection_date: string; notes: string } | null>(null)
   const [newDate, setNewDate] = useState('')
   const [newNotes, setNewNotes] = useState('')
   const [saving, setSaving] = useState(false)
@@ -729,16 +745,6 @@ function GenericDateTab({
     setModal(null)
     setNewDate('')
     setNewNotes('')
-  }
-
-  async function updateDate() {
-    if (!editRow || !editRow.inspection_date) return
-    setSaving(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any).from(tableName).update({ inspection_date: editRow.inspection_date, notes: editRow.notes || null }).eq('id', editRow.id).select().single()
-    if (data) setRows(prev => prev.map(r => r.id === (data as BatimentDateRecord).id ? data as BatimentDateRecord : r))
-    setSaving(false)
-    setEditRow(null)
   }
 
   async function del(id: string) {

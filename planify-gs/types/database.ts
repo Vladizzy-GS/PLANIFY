@@ -303,14 +303,14 @@ export type Database = {
       }
       batiment_dechet: {
         Row: BatimentDechet
-        Insert: { id?: string; branch_id: string; haute_dechet?: string; haute_recyclage?: string; basse_dechet?: string; basse_recyclage?: string }
-        Update: Partial<{ haute_dechet: string; haute_recyclage: string; basse_dechet: string; basse_recyclage: string; updated_at: string }>
+        Insert: { id?: string; branch_id: string; haute_dechet?: string; haute_recyclage?: string; basse_dechet?: string; basse_recyclage?: string; notes?: string | null; supplier?: string | null }
+        Update: Partial<{ haute_dechet: string; haute_recyclage: string; basse_dechet: string; basse_recyclage: string; notes: string | null; supplier: string | null; updated_at: string }>
         Relationships: []
       }
       batiment_menage: {
         Row: BatimentMenage
-        Insert: { id?: string; branch_id: string; haute_freq?: string; basse_freq?: string }
-        Update: Partial<{ haute_freq: string; basse_freq: string; updated_at: string }>
+        Insert: { id?: string; branch_id: string; haute_freq?: string; basse_freq?: string; notes?: string | null; supplier?: string | null }
+        Update: Partial<{ haute_freq: string; basse_freq: string; notes: string | null; supplier: string | null; updated_at: string }>
         Relationships: []
       }
       batiment_inspection_incendie: {
@@ -392,6 +392,8 @@ export type BatimentDechet = {
   haute_recyclage: string
   basse_dechet: string
   basse_recyclage: string
+  notes: string | null
+  supplier: string | null
   created_at: string
   updated_at: string
 }
@@ -401,6 +403,8 @@ export type BatimentMenage = {
   branch_id: string
   haute_freq: string      // '1x' | '2x' | '4x' | 'N/A'
   basse_freq: string
+  notes: string | null
+  supplier: string | null
   created_at: string
   updated_at: string
 }
