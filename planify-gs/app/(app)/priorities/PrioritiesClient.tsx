@@ -46,6 +46,7 @@ function PriorityModal({
   events: Event[]
 }) {
   const supabase = createClient()
+  const { selectedEmployeeId, myEmployeeId, isAdmin } = useSessionStore()
   const [tab, setTab] = useState<'new' | 'from-event'>('new')
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [parts, setParts] = useState<{ label: string; done: boolean }[]>([])
@@ -119,8 +120,18 @@ function PriorityModal({
   async function handleSave() {
     if (!form.title.trim()) { setErr('Titre requis.'); return }
     setSaving(true); setErr('')
-    const { data: profile } = await supabase.from('profiles').select('employee_id').single()
-    if (!profile?.employee_id) { setErr('Aucun employé lié.'); setSaving(false); return }
+    // When admin has selected an employee, create the priority for that employee
+    const targetEmpId = (isAdmin && selectedEmployeeId) ? selectedEmployeeId : null
+    let resolvedEmpId = targetEmpId
+    if (!resolvedEmpId) {
+      if (myEmployeeId) {
+        resolvedEmpId = myEmployeeId
+      } else {
+        const { data: profile } = await supabase.from('profiles').select('employee_id').single()
+        if (!profile?.employee_id) { setErr('Aucun employé lié.'); setSaving(false); return }
+        resolvedEmpId = profile.employee_id
+      }
+    }
 
     const usedParts = splitEnabled ? parts : []
     const payload = {
@@ -148,7 +159,7 @@ function PriorityModal({
       const { data: allP } = await supabase.from('priorities').select('rank').order('rank', { ascending: false }).limit(1)
       const nextRank = allP && allP.length > 0 ? (allP[0].rank ?? 0) + 1 : 1
       const { data, error } = await supabase.from('priorities').insert({
-        ...payload, employee_id: profile.employee_id, rank: nextRank,
+        ...payload, employee_id: resolvedEmpId, rank: nextRank,
       }).select().single()
       if (error) { setErr(error.message); setSaving(false); return }
       const newParts = usedParts.map((p, i) => ({ priority_id: (data as Priority).id, label: p.label, done: p.done, position: i }))

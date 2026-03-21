@@ -13,23 +13,25 @@ const TASK_COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0'
 
 // ─── Tache Creation Modal ─────────────────────────────────────────────────────
 
-function TacheModal({ open, onClose, employees, branches, myEmployeeId, isAdmin, onSaved }: {
+function TacheModal({ open, onClose, employees, branches, myEmployeeId, selectedEmployeeId, isAdmin, onSaved }: {
   open: boolean
   onClose: () => void
   employees: Employee[]
   branches: Branch[]
   myEmployeeId: string | null
+  selectedEmployeeId: string | null
   isAdmin: boolean
   onSaved: (ev: Event) => void
 }) {
   const supabase = createClient()
+  const defaultEmpId = (isAdmin && selectedEmployeeId) ? selectedEmployeeId : (myEmployeeId ?? '')
   const [form, setForm] = useState({
     title: '', start_date: todayStr(), end_date: todayStr(),
     all_day: true, start_hour: 9, end_hour: 17,
     color: '#FF4D6D', priority_level: 'Moyen' as 'Faible' | 'Moyen' | 'Élevé',
     branch_ids: [] as string[],
   })
-  const [empId, setEmpId] = useState<string>(myEmployeeId ?? '')
+  const [empId, setEmpId] = useState<string>(defaultEmpId)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -40,10 +42,10 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, isAdmin,
         all_day: true, start_hour: 9, end_hour: 17,
         color: '#FF4D6D', priority_level: 'Moyen', branch_ids: [],
       })
-      setEmpId(myEmployeeId ?? '')
+      setEmpId((isAdmin && selectedEmployeeId) ? selectedEmployeeId : (myEmployeeId ?? ''))
       setErr('')
     }
-  }, [open, myEmployeeId])
+  }, [open, myEmployeeId, selectedEmployeeId, isAdmin])
 
   function toggleBranch(id: string) {
     setForm(f => ({
@@ -617,6 +619,7 @@ export default function TasksClient({
         employees={employees}
         branches={branches}
         myEmployeeId={myEmployeeId}
+        selectedEmployeeId={selectedEmployeeId}
         isAdmin={isAdmin}
         onSaved={ev => {
           setEvents(prev => [...prev, ev])
