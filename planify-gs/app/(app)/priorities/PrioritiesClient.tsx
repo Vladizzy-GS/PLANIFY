@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
-import { todayStr, localDate } from '@/lib/utils/dates'
-import type { Priority, PriorityPart } from '@/types/database'
+import { localDate, todayStr } from '@/lib/utils/dates'
+import type { Priority, PriorityPart, Branch, Event } from '@/types/database'
 
 const COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0','#3A86FF','#FB5607','#8338EC','#06A77D']
-
 const STATUSES: Priority['status'][] = ['À faire','En cours','En révision','Terminé','Bloqué']
 
 function statusColor(s: string) {
@@ -33,26 +32,39 @@ const EMPTY_FORM = {
   due_date: '', notes: '',
 }
 
-// ─── Priority Modal ────────────────────────────────────────────────────────────
+// ─── Priority Modal ─────────────────────────────────────────────────────────────
 
 function PriorityModal({
-  open, onClose, priority, onSaved, onDeleted,
+  open, onClose, priority, onSaved, onDeleted, branches, events,
 }: {
   open: boolean
   onClose: () => void
   priority: PriorityWithParts | null
   onSaved: (p: PriorityWithParts) => void
   onDeleted: (id: string) => void
+  branches: Branch[]
+  events: Event[]
 }) {
   const supabase = createClient()
+  const [tab, setTab] = useState<'new' | 'from-event'>('new')
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [parts, setParts] = useState<{ label: string; done: boolean }[]>([])
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splitPreset, setSplitPreset] = useState<string | null>(null)
   const [newPart, setNewPart] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  // "From event" tab
+  const [selectedEventId, setSelectedEventId] = useState('')
 
   useEffect(() => {
     if (!open) return
+    setTab('new')
+    setErr('')
+    setSplitEnabled(false)
+    setSplitPreset(null)
+    setNewPart('')
+    setSelectedEventId('')
     if (priority) {
       setForm({
         title: priority.title, description: priority.description,
@@ -60,16 +72,30 @@ function PriorityModal({
         status: priority.status, due_date: priority.due_date ?? '',
         notes: priority.notes,
       })
+      const hasParts = priority.parts.length > 0
       setParts(priority.parts.map(p => ({ label: p.label, done: p.done })))
+      setSplitEnabled(hasParts)
     } else {
       setForm({ ...EMPTY_FORM })
       setParts([])
     }
-    setErr('')
   }, [open, priority])
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }))
+  }
+
+  function applyPreset(preset: string) {
+    setSplitPreset(preset)
+    if (preset === 'Inspection succursales') {
+      setParts(branches.map(b => ({ label: `${b.short_code} — ${b.name}`, done: false })))
+    } else if (preset === '3 parties') {
+      setParts([{ label: '', done: false }, { label: '', done: false }, { label: '', done: false }])
+    } else if (preset === '5 parties') {
+      setParts(Array.from({ length: 5 }, () => ({ label: '', done: false })))
+    } else {
+      setParts([])
+    }
   }
 
   function addPart() {
@@ -78,32 +104,54 @@ function PriorityModal({
     setNewPart('')
   }
 
+  function selectEvent(evId: string) {
+    setSelectedEventId(evId)
+    const ev = events.find(e => e.id === evId)
+    if (!ev) return
+    setForm(f => ({
+      ...f,
+      title: ev.title,
+      description: `Événement du ${ev.start_date}`,
+      priority_level: ev.priority_level,
+    }))
+  }
+
   async function handleSave() {
     if (!form.title.trim()) { setErr('Titre requis.'); return }
     setSaving(true); setErr('')
+    const { data: profile } = await supabase.from('profiles').select('employee_id').single()
+    if (!profile?.employee_id) { setErr('Aucun employé lié.'); setSaving(false); return }
+
+    const usedParts = splitEnabled ? parts : []
     const payload = {
-      title: form.title.trim(), description: form.description,
-      color: form.color, priority_level: form.priority_level,
-      status: form.status, due_date: form.due_date || null,
-      notes: form.notes, rank: priority?.rank ?? 0,
+      title: form.title.trim(),
+      description: form.description,
+      color: form.color,
+      priority_level: form.priority_level,
+      status: form.status,
+      due_date: form.due_date || null,
+      notes: form.notes,
+      linked_event_id: tab === 'from-event' && selectedEventId ? selectedEventId : (priority?.linked_event_id ?? null),
     }
+
     if (priority) {
-      const { data, error } = await supabase.from('priorities').update(payload).eq('id', priority.id).select().single()
+      const { data, error } = await supabase.from('priorities').update({ ...payload, rank: priority.rank }).eq('id', priority.id).select().single()
       if (error) { setErr(error.message); setSaving(false); return }
-      // Update parts: delete all then re-insert
       await supabase.from('priority_parts').delete().eq('priority_id', priority.id)
-      const newParts = parts.map((p, i) => ({ priority_id: priority.id, label: p.label, done: p.done, position: i }))
+      const newParts = usedParts.map((p, i) => ({ priority_id: priority.id, label: p.label, done: p.done, position: i }))
       const { data: partsData } = newParts.length > 0
         ? await supabase.from('priority_parts').insert(newParts).select()
         : { data: [] }
       onSaved({ ...(data as Priority), parts: (partsData ?? []) as PriorityPart[] })
     } else {
-      // Need employee_id — get from session
-      const { data: profile } = await supabase.from('profiles').select('employee_id').single()
-      if (!profile?.employee_id) { setErr('Aucun employé lié à votre compte.'); setSaving(false); return }
-      const { data, error } = await supabase.from('priorities').insert({ ...payload, employee_id: profile.employee_id }).select().single()
+      // Determine next rank
+      const { data: allP } = await supabase.from('priorities').select('rank').order('rank', { ascending: false }).limit(1)
+      const nextRank = allP && allP.length > 0 ? (allP[0].rank ?? 0) + 1 : 1
+      const { data, error } = await supabase.from('priorities').insert({
+        ...payload, employee_id: profile.employee_id, rank: nextRank,
+      }).select().single()
       if (error) { setErr(error.message); setSaving(false); return }
-      const newParts = parts.map((p, i) => ({ priority_id: (data as Priority).id, label: p.label, done: p.done, position: i }))
+      const newParts = usedParts.map((p, i) => ({ priority_id: (data as Priority).id, label: p.label, done: p.done, position: i }))
       const { data: partsData } = newParts.length > 0
         ? await supabase.from('priority_parts').insert(newParts).select()
         : { data: [] }
@@ -125,8 +173,8 @@ function PriorityModal({
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '10px 13px',
-    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
-    borderRadius: '9px', color: '#e8e8f0', fontSize: '14px',
+    background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)',
+    borderRadius: '9px', color: '#e8e8f0', fontSize: '14px', boxSizing: 'border-box',
   }
   const lbl: React.CSSProperties = {
     display: 'block', fontSize: '11px', fontWeight: 700,
@@ -135,27 +183,69 @@ function PriorityModal({
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '18px', padding: '28px', width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 800, color: '#e8e8f0' }}>
-            {priority ? 'Modifier la priorité' : 'Nouvelle priorité'}
-          </h2>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '18px', padding: '28px', width: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '20px', fontWeight: 800, color: '#e8e8f0' }}>Priorité</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
         </div>
 
+        {/* Tabs — only for creation */}
+        {!priority && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', background: 'rgba(255,255,255,.05)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
+            <button
+              onClick={() => setTab('new')}
+              style={{ padding: '9px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer', background: tab === 'new' ? 'linear-gradient(135deg,#FF4D6D,#F77F00)' : 'transparent', color: tab === 'new' ? '#fff' : 'rgba(255,255,255,.5)' }}
+            >
+              Nouvelle priorité
+            </button>
+            <button
+              onClick={() => setTab('from-event')}
+              style={{ padding: '9px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer', background: tab === 'from-event' ? 'rgba(255,255,255,.1)' : 'transparent', color: tab === 'from-event' ? '#e8e8f0' : 'rgba(255,255,255,.5)' }}
+            >
+              Depuis un événement
+            </button>
+          </div>
+        )}
+
+        {/* From-event tab: pick event */}
+        {tab === 'from-event' && !priority && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={lbl}>Événement *</label>
+            <select
+              value={selectedEventId}
+              onChange={e => selectEvent(e.target.value)}
+              style={inp}
+            >
+              <option value="">-- Sélectionner un événement --</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.start_date} · {ev.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gap: '14px' }}>
+          {/* Title */}
           <div>
             <label style={lbl}>Titre *</label>
-            <input value={form.title} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ex: Migration base de données" />
+            <input value={form.title} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ex: Inspection bâtiment" />
           </div>
+
+          {/* Description */}
           <div>
             <label style={lbl}>Description</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} style={{ ...inp, resize: 'vertical', minHeight: '70px' }} placeholder="Description optionnelle…" />
+            <input value={form.description} onChange={e => set('description', e.target.value)} style={inp} placeholder="Description optionnelle…" />
           </div>
+
+          {/* Level + Status */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={lbl}>Priorité</label>
+              <label style={lbl}>Niveau</label>
               <select value={form.priority_level} onChange={e => set('priority_level', e.target.value as Priority['priority_level'])} style={inp}>
                 <option value="Faible">Faible</option>
                 <option value="Moyen">Moyen</option>
@@ -169,54 +259,98 @@ function PriorityModal({
               </select>
             </div>
           </div>
-          <div>
-            <label style={lbl}>Date d'échéance</label>
-            <input type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} style={inp} />
+
+          {/* Split toggle */}
+          <div
+            style={{ padding: '12px 16px', borderRadius: '12px', border: `1px solid ${splitEnabled ? 'rgba(123,47,190,.5)' : 'rgba(255,255,255,.08)'}`, background: splitEnabled ? 'rgba(123,47,190,.08)' : 'rgba(255,255,255,.03)', cursor: 'pointer' }}
+            onClick={() => { setSplitEnabled(v => !v); if (splitEnabled) { setParts([]); setSplitPreset(null) } }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Toggle pill */}
+              <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: splitEnabled ? '#7B2FBE' : 'rgba(255,255,255,.15)', position: 'relative', flexShrink: 0, transition: 'background .2s' }}>
+                <div style={{ position: 'absolute', top: '3px', left: splitEnabled ? '19px' : '3px', width: '14px', height: '14px', borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#e8e8f0' }}>Diviser en parties</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)' }}>Ex: inspection par succursale, projet en étapes</div>
+              </div>
+            </div>
           </div>
+
+          {/* Split presets + parts */}
+          {splitEnabled && (
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {/* Preset buttons */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {['Inspection succursales', '3 parties', '5 parties', 'Personnalisé'].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => applyPreset(preset)}
+                    style={{
+                      padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: '1px solid',
+                      borderColor: splitPreset === preset ? '#F77F00' : 'rgba(255,255,255,.15)',
+                      background: splitPreset === preset ? 'rgba(247,127,0,.15)' : 'transparent',
+                      color: splitPreset === preset ? '#F77F00' : 'rgba(255,255,255,.5)',
+                    }}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              {/* Parts list */}
+              <div style={{ display: 'grid', gap: '6px' }}>
+                {parts.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.3)', width: '18px', textAlign: 'right', flexShrink: 0 }}>{i + 1}.</span>
+                    <input
+                      value={p.label}
+                      onChange={e => setParts(ps => ps.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                      style={{ ...inp, padding: '7px 10px' }}
+                      placeholder={`Partie ${i + 1}`}
+                    />
+                    <button onClick={() => setParts(ps => ps.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'rgba(255,77,109,.5)', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add part manually */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  value={newPart} onChange={e => setNewPart(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addPart()}
+                  placeholder="Ajouter une partie…"
+                  style={{ ...inp, flex: 1 }}
+                />
+                <button onClick={addPart} style={{ padding: '9px 14px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,.08)', color: '#e8e8f0', cursor: 'pointer', fontWeight: 600 }}>+</button>
+              </div>
+            </div>
+          )}
+
+          {/* Color */}
           <div>
             <label style={lbl}>Couleur</label>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {COLORS.map(c => (
-                <button key={c} onClick={() => set('color', c)} style={{ width: '28px', height: '28px', borderRadius: '8px', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
+                <button key={c} onClick={() => set('color', c)} style={{ width: '26px', height: '26px', borderRadius: '7px', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
               ))}
             </div>
           </div>
-          {/* Sub-tasks */}
+
+          {/* Due date */}
           <div>
-            <label style={lbl}>Sous-tâches</label>
-            <div style={{ display: 'grid', gap: '6px', marginBottom: '8px' }}>
-              {parts.map((p, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: 'rgba(255,255,255,.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,.07)' }}>
-                  <input
-                    type="checkbox" checked={p.done}
-                    onChange={() => setParts(ps => ps.map((x, j) => j === i ? { ...x, done: !x.done } : x))}
-                    style={{ accentColor: '#06D6A0', width: '14px', height: '14px', cursor: 'pointer' }}
-                  />
-                  <span style={{ flex: 1, fontSize: '13px', color: '#e8e8f0', textDecoration: p.done ? 'line-through' : 'none', opacity: p.done ? .5 : 1 }}>{p.label}</span>
-                  <button onClick={() => setParts(ps => ps.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'rgba(255,77,109,.6)', cursor: 'pointer', fontSize: '14px' }}>✕</button>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                value={newPart} onChange={e => setNewPart(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addPart()}
-                placeholder="Ajouter une sous-tâche…"
-                style={{ ...inp, flex: 1 }}
-              />
-              <button onClick={addPart} style={{ padding: '10px 16px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,.08)', color: '#e8e8f0', cursor: 'pointer', fontWeight: 600 }}>+</button>
-            </div>
-          </div>
-          <div>
-            <label style={lbl}>Notes</label>
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} style={{ ...inp, resize: 'vertical', minHeight: '60px' }} placeholder="Notes…" />
+            <label style={lbl}>Date limite</label>
+            <input type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} style={inp} />
           </div>
 
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
 
+          {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
             {priority && (
-              <button onClick={handleDelete} style={{ padding: '11px 18px', borderRadius: '10px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Supprimer</button>
+              <button onClick={handleDelete} style={{ padding: '11px 18px', borderRadius: '10px', border: '1px solid rgba(255,77,109,.4)', background: 'transparent', color: '#FF4D6D', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                Supprimer
+              </button>
             )}
             <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}>
               {saving ? 'Enregistrement…' : priority ? 'Enregistrer' : 'Créer la priorité'}
@@ -228,99 +362,146 @@ function PriorityModal({
   )
 }
 
-// ─── Priority Card ─────────────────────────────────────────────────────────────
+// ─── Priority Row ───────────────────────────────────────────────────────────────
 
-function PriorityCard({ p, onClick }: { p: PriorityWithParts; onClick: () => void }) {
-  const supabase = createClient()
-  const [parts, setParts] = useState(p.parts)
-  const sc = statusColor(p.status)
+function PriorityRow({
+  p, rank, isFirst, isLast,
+  onEdit, onMoveUp, onMoveDown, onToggleLock, onTogglePart,
+}: {
+  p: PriorityWithParts
+  rank: number
+  isFirst: boolean
+  isLast: boolean
+  onEdit: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onToggleLock: () => void
+  onTogglePart: (partId: string, done: boolean) => void
+}) {
   const pc = priorityColor(p.priority_level)
-  const doneParts = parts.filter(pt => pt.done).length
-  const pct = parts.length ? Math.round(doneParts / parts.length * 100) : null
-
-  async function togglePart(part: PriorityPart) {
-    const newDone = !part.done
-    setParts(ps => ps.map(x => x.id === part.id ? { ...x, done: newDone } : x))
-    await supabase.from('priority_parts').update({ done: newDone }).eq('id', part.id)
-  }
-
+  const sc = statusColor(p.status)
+  const doneParts = p.parts.filter(pt => pt.done).length
+  const totalParts = p.parts.length
+  const pct = totalParts ? Math.round(doneParts / totalParts * 100) : null
   const isOverdue = p.due_date && p.due_date < todayStr() && p.status !== 'Terminé'
+
+  const btnStyle: React.CSSProperties = {
+    padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
+    cursor: 'pointer', border: '1px solid rgba(255,255,255,.15)',
+    background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.6)',
+  }
 
   return (
     <div style={{ background: '#13131f', borderRadius: '14px', border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden', position: 'relative' }}>
+      {/* Colored left border */}
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '3px', background: p.color }} />
-      <div style={{ padding: '14px 16px 14px 20px', cursor: 'pointer' }} onClick={onClick}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '8px' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#e8e8f0', marginBottom: '4px' }}>{p.title}</div>
-            {p.description && <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>{p.description}</div>}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: sc, background: `${sc}18`, padding: '2px 8px', borderRadius: '8px' }}>{p.status}</span>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: pc, background: `${pc}15`, padding: '1px 7px', borderRadius: '6px' }}>{p.priority_level}</span>
-          </div>
+
+      <div style={{ padding: '14px 16px 14px 22px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        {/* Rank + arrows */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+          <span style={{ fontSize: '20px', fontWeight: 800, color: p.color, fontFamily: 'var(--font-syne)', lineHeight: 1, minWidth: '24px', textAlign: 'center' }}>{rank}</span>
+          <button
+            onClick={onMoveUp} disabled={isFirst || p.locked}
+            style={{ background: 'none', border: 'none', color: isFirst || p.locked ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.4)', cursor: isFirst || p.locked ? 'default' : 'pointer', fontSize: '14px', lineHeight: 1, padding: '1px' }}
+          >▲</button>
+          <button
+            onClick={onMoveDown} disabled={isLast || p.locked}
+            style={{ background: 'none', border: 'none', color: isLast || p.locked ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.4)', cursor: isLast || p.locked ? 'default' : 'pointer', fontSize: '14px', lineHeight: 1, padding: '1px' }}
+          >▼</button>
         </div>
 
-        {/* Progress bar */}
-        {pct !== null && (
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,.35)', marginBottom: '4px' }}>
-              <span>{doneParts}/{parts.length} sous-tâches</span>
-              <span>{pct}%</span>
-            </div>
-            <div style={{ height: '4px', background: 'rgba(255,255,255,.1)', borderRadius: '2px' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#06D6A0' : p.color, borderRadius: '2px', transition: 'width .3s' }} />
-            </div>
+        {/* Main content */}
+        <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onEdit}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{p.title}</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: pc, background: `${pc}18`, padding: '2px 7px', borderRadius: '6px' }}>• {p.priority_level}</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: sc, background: `${sc}18`, padding: '2px 7px', borderRadius: '6px' }}>{p.status}</span>
           </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {p.description && (
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', marginBottom: '8px' }}>{p.description}</div>
+          )}
+          {/* Progress bar */}
+          {pct !== null && (
+            <div style={{ marginBottom: '6px' }}>
+              <div style={{ height: '3px', background: 'rgba(255,255,255,.08)', borderRadius: '2px' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#06D6A0' : p.color, borderRadius: '2px', transition: 'width .3s' }} />
+              </div>
+            </div>
+          )}
+          {/* Footer meta */}
           {p.due_date && (
-            <span style={{ fontSize: '11px', color: isOverdue ? '#FF4D6D' : 'rgba(255,255,255,.35)', fontWeight: isOverdue ? 700 : 400 }}>
-              {isOverdue ? '⚠ ' : ''}Échéance : {localDate(p.due_date).getDate()}/{localDate(p.due_date).getMonth() + 1}/{localDate(p.due_date).getFullYear()}
+            <div style={{ fontSize: '11px', color: isOverdue ? '#FF4D6D' : 'rgba(255,255,255,.3)', fontWeight: isOverdue ? 700 : 400 }}>
+              {isOverdue ? '⚠ ' : ''}Échéance : {localDate(p.due_date).toLocaleDateString('fr-CA')}
+            </div>
+          )}
+        </div>
+
+        {/* Right-side actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+          {p.locked && (
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#FCBF49', background: 'rgba(252,191,73,.15)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(252,191,73,.3)', letterSpacing: '.05em' }}>
+              VERROUILLÉ
             </span>
           )}
+          {pct !== null && (
+            <span style={{ fontSize: '12px', fontWeight: 700, color: p.color }}>{pct}%</span>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <button onClick={onToggleLock} style={{ ...btnStyle, color: p.locked ? '#FCBF49' : 'rgba(255,255,255,.5)', borderColor: p.locked ? 'rgba(252,191,73,.4)' : 'rgba(255,255,255,.15)' }}>
+              {p.locked ? 'Déverr.' : 'Verr.'}
+            </button>
+            <button onClick={onEdit} style={btnStyle}>Edit.</button>
+          </div>
         </div>
       </div>
 
-      {/* Sub-tasks */}
-      {parts.length > 0 && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '10px 16px 10px 20px' }}>
-          {parts.map(pt => (
-            <div
-              key={pt.id}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer' }}
-              onClick={e => { e.stopPropagation(); togglePart(pt) }}
-            >
-              <div style={{
-                width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
-                border: pt.done ? 'none' : '2px solid rgba(255,255,255,.2)',
-                background: pt.done ? '#4CAF50' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {pt.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+      {/* Parts sub-list */}
+      {p.parts.length > 0 && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '10px 16px 12px 22px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.3)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>
+            {doneParts}/{totalParts} PARTIES COMPLÉTÉES
+          </div>
+          <div style={{ display: 'grid', gap: '4px' }}>
+            {p.parts.map(pt => (
+              <div
+                key={pt.id}
+                onClick={() => onTogglePart(pt.id, !pt.done)}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', background: pt.done ? 'rgba(6,214,160,.06)' : 'rgba(255,255,255,.03)', border: `1px solid ${pt.done ? 'rgba(6,214,160,.2)' : 'rgba(255,255,255,.06)'}` }}
+              >
+                <div style={{
+                  width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                  border: pt.done ? 'none' : '2px solid rgba(255,255,255,.2)',
+                  background: pt.done ? '#06D6A0' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {pt.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <span style={{ fontSize: '13px', color: pt.done ? 'rgba(255,255,255,.3)' : '#e8e8f0', textDecoration: pt.done ? 'line-through' : 'none', flex: 1 }}>
+                  {pt.label}
+                </span>
               </div>
-              <span style={{ fontSize: '13px', color: pt.done ? 'rgba(255,255,255,.35)' : '#e8e8f0', textDecoration: pt.done ? 'line-through' : 'none' }}>
-                {pt.label}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────────────────────
 
-export default function PrioritiesClient({ initialPriorities }: { initialPriorities: PriorityWithParts[] }) {
+export default function PrioritiesClient({
+  initialPriorities, branches, events,
+}: {
+  initialPriorities: PriorityWithParts[]
+  branches: Branch[]
+  events: Event[]
+}) {
+  const supabase = createClient()
   const [priorities, setPriorities] = useState(initialPriorities)
   const [modalOpen, setModalOpen] = useState(false)
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
-  const [filter, setFilter] = useState<Priority['status'] | 'all'>('all')
 
-  // ─── Employee filtering ───────────────────────────────────────────────────────
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const myEmployeeId = useSessionStore(s => s.myEmployeeId)
   const isAdmin = useSessionStore(s => s.isAdmin)
@@ -329,15 +510,14 @@ export default function PrioritiesClient({ initialPriorities }: { initialPriorit
     ? priorities.filter(p => p.employee_id === viewEmpId)
     : priorities
 
-  // Stats
-  const stats: { label: Priority['status'] | 'Tout'; count: number; color: string }[] = [
-    { label: 'Tout', count: viewPriorities.length, color: 'rgba(255,255,255,.4)' },
-    { label: 'À faire', count: viewPriorities.filter(p => p.status === 'À faire').length, color: '#4CC9F0' },
-    { label: 'En cours', count: viewPriorities.filter(p => p.status === 'En cours').length, color: '#F77F00' },
-    { label: 'Terminé', count: viewPriorities.filter(p => p.status === 'Terminé').length, color: '#06D6A0' },
-  ]
+  // Sorted by rank
+  const sorted = [...viewPriorities].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
 
-  const filtered = filter === 'all' ? viewPriorities : viewPriorities.filter(p => p.status === filter)
+  // Stats
+  const total = sorted.length
+  const enCours = sorted.filter(p => p.status === 'En cours').length
+  const termines = sorted.filter(p => p.status === 'Terminé').length
+  const verrouilles = sorted.filter(p => p.locked).length
 
   function openModal(p: PriorityWithParts | null) {
     setEditPriority(p)
@@ -356,49 +536,95 @@ export default function PrioritiesClient({ initialPriorities }: { initialPriorit
     setPriorities(prev => prev.filter(p => p.id !== id))
   }
 
+  async function handleToggleLock(p: PriorityWithParts) {
+    const newLocked = !p.locked
+    setPriorities(prev => prev.map(x => x.id === p.id ? { ...x, locked: newLocked } : x))
+    await supabase.from('priorities').update({ locked: newLocked }).eq('id', p.id)
+  }
+
+  async function handleMove(p: PriorityWithParts, direction: 'up' | 'down') {
+    if (p.locked) return
+    const sortedAll = [...priorities].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+    const idx = sortedAll.findIndex(x => x.id === p.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sortedAll.length) return
+    const other = sortedAll[swapIdx]
+    if (other.locked) return
+
+    const newRankA = other.rank ?? swapIdx
+    const newRankB = p.rank ?? idx
+
+    setPriorities(prev => prev.map(x => {
+      if (x.id === p.id) return { ...x, rank: newRankA }
+      if (x.id === other.id) return { ...x, rank: newRankB }
+      return x
+    }))
+
+    await Promise.all([
+      supabase.from('priorities').update({ rank: newRankA }).eq('id', p.id),
+      supabase.from('priorities').update({ rank: newRankB }).eq('id', other.id),
+    ])
+  }
+
+  async function handleTogglePart(p: PriorityWithParts, partId: string, done: boolean) {
+    setPriorities(prev => prev.map(x => x.id === p.id
+      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done } : pt) }
+      : x
+    ))
+    await supabase.from('priority_parts').update({ done }).eq('id', partId)
+  }
+
   return (
     <div style={{ padding: '28px 32px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,.35)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Tâches</div>
-          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '26px', fontWeight: 800, color: '#e8e8f0' }}>Priorités</h1>
+          <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '28px', fontWeight: 800, color: '#e8e8f0' }}>Priorités</h1>
         </div>
         <button
           onClick={() => openModal(null)}
-          style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+          style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
         >
           + Priorité
         </button>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        {stats.map(s => (
-          <button
-            key={s.label}
-            onClick={() => setFilter(s.label === 'Tout' ? 'all' : s.label as Priority['status'])}
-            style={{
-              padding: '14px 16px', borderRadius: '12px', cursor: 'pointer', textAlign: 'left',
-              border: `1px solid ${(filter === 'all' && s.label === 'Tout') || filter === s.label ? `${s.color}50` : 'rgba(255,255,255,.07)'}`,
-              background: (filter === 'all' && s.label === 'Tout') || filter === s.label ? `${s.color}10` : '#13131f',
-            }}
-          >
-            <div style={{ fontSize: '24px', fontWeight: 800, color: s.color, fontFamily: 'var(--font-syne)', marginBottom: '4px' }}>{s.count}</div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
-          </button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        {[
+          { label: 'Total', value: total, color: 'rgba(255,255,255,.5)' },
+          { label: 'En cours', value: enCours, color: '#F77F00' },
+          { label: 'Terminés', value: termines, color: '#06D6A0' },
+          { label: 'Verrouillés', value: verrouilles, color: '#FCBF49' },
+        ].map(s => (
+          <div key={s.label} style={{ padding: '16px 18px', borderRadius: '14px', background: '#13131f', border: '1px solid rgba(255,255,255,.07)' }}>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: s.color, fontFamily: 'var(--font-syne)', lineHeight: 1, marginBottom: '6px' }}>{s.value}</div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
+          </div>
         ))}
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', color: 'rgba(255,255,255,.25)', fontSize: '14px' }}>
-          Aucune priorité{filter !== 'all' ? ` "${filter}"` : ''}
+      {/* Priority list */}
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,.2)', fontSize: '14px' }}>
+          Aucune priorité
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '10px' }}>
-          {filtered.map(p => (
-            <PriorityCard key={p.id} p={p} onClick={() => openModal(p)} />
+          {sorted.map((p, idx) => (
+            <PriorityRow
+              key={p.id}
+              p={p}
+              rank={idx + 1}
+              isFirst={idx === 0}
+              isLast={idx === sorted.length - 1}
+              onEdit={() => openModal(p)}
+              onMoveUp={() => handleMove(p, 'up')}
+              onMoveDown={() => handleMove(p, 'down')}
+              onToggleLock={() => handleToggleLock(p)}
+              onTogglePart={(partId, done) => handleTogglePart(p, partId, done)}
+            />
           ))}
         </div>
       )}
@@ -406,6 +632,7 @@ export default function PrioritiesClient({ initialPriorities }: { initialPriorit
       <PriorityModal
         open={modalOpen} onClose={() => setModalOpen(false)}
         priority={editPriority} onSaved={onSaved} onDeleted={onDeleted}
+        branches={branches} events={events}
       />
     </div>
   )

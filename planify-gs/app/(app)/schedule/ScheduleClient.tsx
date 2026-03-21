@@ -34,6 +34,7 @@ const EMPTY_FORM = {
   repeat_end_date: '',
   branch_ids: [] as string[],
   done: false,
+  add_to_priorities: false,
 }
 
 // ─── Modal ─────────────────────────────────────────────────────────────────────
@@ -115,14 +116,33 @@ function EventModal({
       branch_ids: form.branch_ids,
       done: form.done,
     }
+    let savedEvent: Event | null = null
     if (event) {
       const { data, error } = await supabase.from('events').update(payload).eq('id', event.id).select().single()
       if (error) { setErr(error.message); setSaving(false); return }
-      onSaved(data as Event)
+      savedEvent = data as Event
+      onSaved(savedEvent)
     } else {
       const { data, error } = await supabase.from('events').insert(payload).select().single()
       if (error) { setErr(error.message); setSaving(false); return }
-      onSaved(data as Event)
+      savedEvent = data as Event
+      // Also create a linked priority if checkbox is checked
+      if (form.add_to_priorities && savedEvent) {
+        const { data: allP } = await supabase.from('priorities').select('rank').order('rank', { ascending: false }).limit(1)
+        const nextRank = allP && allP.length > 0 ? (allP[0].rank ?? 0) + 1 : 1
+        await supabase.from('priorities').insert({
+          employee_id: empId,
+          title: savedEvent.title,
+          description: `Depuis l'horaire — ${savedEvent.start_date}`,
+          color: savedEvent.color,
+          priority_level: savedEvent.priority_level,
+          status: 'À faire' as const,
+          rank: nextRank,
+          linked_event_id: savedEvent.id,
+          alert_linked: false,
+        })
+      }
+      onSaved(savedEvent)
     }
     setSaving(false)
     onClose()
@@ -309,6 +329,20 @@ function EventModal({
             />
             <span style={{ fontSize: '14px', color: 'rgba(255,255,255,.6)' }}>Marqué comme terminé</span>
           </label>
+
+          {/* Add to priorities (only on creation) */}
+          {!event && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${form.add_to_priorities ? 'rgba(123,47,190,.5)' : 'rgba(255,255,255,.08)'}`, background: form.add_to_priorities ? 'rgba(123,47,190,.08)' : 'transparent' }}>
+              <input
+                type="checkbox" checked={form.add_to_priorities} onChange={e => set('add_to_priorities', e.target.checked)}
+                style={{ width: '16px', height: '16px', accentColor: '#7B2FBE' }}
+              />
+              <div>
+                <div style={{ fontSize: '14px', color: '#e8e8f0', fontWeight: 600 }}>Ajouter aux priorités</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)' }}>Crée une priorité liée à cet événement</div>
+              </div>
+            </label>
+          )}
 
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
 
