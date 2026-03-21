@@ -19,6 +19,14 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data)
 }
 
+function sanitizeEmpFields(fields: Record<string, unknown>) {
+  return {
+    ...fields,
+    email: fields.email && String(fields.email).trim() ? String(fields.email).trim() : null,
+    phone: fields.phone && String(fields.phone).trim() ? String(fields.phone).trim() : null,
+  }
+}
+
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -28,7 +36,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data, error } = await (supabase as any)
     .from('employees')
-    .insert({ ...empFields, is_active: true })
+    .insert({ ...sanitizeEmpFields(empFields), is_active: true })
     .select()
     .single()
 
@@ -48,7 +56,7 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const supabase = await createClient()
-  const { data, error } = await (supabase as any).from('employees').update(updates).eq('id', id).select().single()
+  const { data, error } = await (supabase as any).from('employees').update(sanitizeEmpFields(updates)).eq('id', id).select().single()
 
   if (error) return NextResponse.json({ error: DB_ERROR }, { status: 500 })
   return NextResponse.json(data)
