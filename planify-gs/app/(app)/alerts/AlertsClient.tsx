@@ -106,7 +106,7 @@ function AlertModal({ open, onClose, onSaved }: {
             <span style={{ fontSize: '14px', color: 'rgba(255,255,255,.6)' }}>Ajouter à l'horaire</span>
           </label>
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
-          <button onClick={handleSave} disabled={saving} style={{ padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}>
             {saving ? 'Création…' : 'Créer l\'alerte'}
           </button>
         </div>
@@ -222,7 +222,7 @@ export default function AlertsClient({ initialAlerts }: { initialAlerts: Alert[]
         </div>
         <button
           onClick={() => setModalOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
         >
           + Nouvelle alerte
         </button>

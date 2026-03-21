@@ -411,7 +411,7 @@ function PriorityModal({
                 Supprimer
               </button>
             )}
-            <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}>
+            <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}>
               {saving ? 'Enregistrement…' : priority ? 'Enregistrer' : 'Créer la priorité'}
             </button>
           </div>
@@ -666,7 +666,7 @@ export default function PrioritiesClient({
         </div>
         <button
           onClick={() => openModal(null)}
-          style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#7B2FBE,#FF4D6D)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+          style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
         >
           + Priorité
         </button>
