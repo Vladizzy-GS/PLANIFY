@@ -305,7 +305,7 @@ export default function BatimentClient({
   return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <div style={s.title}>🏢 Section Bâtiment</div>
+        <div style={s.title}>Section Bâtiment</div>
         <div style={s.sub}>Gestion des bâtiments par succursale</div>
       </div>
 
@@ -323,7 +323,6 @@ export default function BatimentClient({
           inspections={inspections}
           getInspDate={getInspDate}
           saveInspDate={saveInspDate}
-          isAdmin={isAdmin}
         />
       )}
       {tab === 'deneigement' && (
@@ -373,13 +372,11 @@ function InspectionBatimentTab({
   inspections,
   getInspDate,
   saveInspDate,
-  isAdmin,
 }: {
   branches: Branch[]
   inspections: BatimentInspection[]
   getInspDate: (branchId: string, period: string) => string
   saveInspDate: (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => Promise<void>
-  isAdmin: boolean
 }) {
   return (
     <div>
@@ -419,16 +416,12 @@ function InspectionBatimentTab({
                     const val = getInspDate(b.id, row.period)
                     return (
                       <td key={b.id} style={s.td()}>
-                        {isAdmin ? (
-                          <input
+                        <input
                             type="date"
                             value={val}
                             onChange={e => saveInspDate(b.id, row.period, row.period_type, e.target.value)}
                             style={s.dateInput}
                           />
-                        ) : (
-                          <span style={{ fontSize: '11px' }}>{val ? val : ''}</span>
-                        )}
                       </td>
                     )
                   })}
@@ -531,21 +524,17 @@ function DeneigementTab({
                               {c.contact_name && <div>{c.contact_name}</div>}
                               {c.phone && <div style={{ color: 'var(--text-muted)' }}>{c.phone}</div>}
                             </div>
-                            {isAdmin && (
-                              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                                <button style={s.btnGhost} onClick={() => openEdit(c)}>✎</button>
-                                <button style={{ ...s.btnGhost, color: '#f44' }} onClick={() => del(c.id)}>×</button>
-                              </div>
-                            )}
+                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                              <button style={s.btnGhost} onClick={() => openEdit(c)}>✎</button>
+                              <button style={{ ...s.btnGhost, color: '#f44' }} onClick={() => del(c.id)}>×</button>
+                            </div>
                           </div>
                         ))
                       )}
                     </div>
                   )
                 })}
-                {isAdmin && (
-                  <button style={{ ...s.btnSm, marginTop: '6px', width: '100%' }} onClick={() => openAdd(b.id)}>+ Ajouter contact</button>
-                )}
+                <button style={{ ...s.btnSm, marginTop: '6px', width: '100%' }} onClick={() => openAdd(b.id)}>+ Ajouter contact</button>
               </div>
             </div>
           )
@@ -589,7 +578,7 @@ function DeneigementTab({
 type DechetField = 'haute_dechet' | 'haute_recyclage' | 'basse_dechet' | 'basse_recyclage'
 
 function FreqCell({
-  value, branchId, field, isAdmin, onSave,
+  value, branchId, field, onSave,
 }: {
   value: string
   branchId: string
@@ -597,7 +586,6 @@ function FreqCell({
   isAdmin: boolean
   onSave: (branchId: string, field: DechetField, val: string) => Promise<void>
 }) {
-  if (!isAdmin) return <span style={{ fontSize: '13px', fontWeight: 600 }}>{value}</span>
   return (
     <select
       style={{ ...s.select, width: '60px', textAlign: 'center' }}
@@ -674,13 +662,9 @@ function MenageTab({ branches, menages, getMenage, saveMenage, isAdmin }: {
         const val = row?.[field] ?? 'N/A'
         return (
           <td key={b.id} style={s.td()}>
-            {isAdmin ? (
-              <select style={{ ...s.select, width: '60px', textAlign: 'center' }} value={val} onChange={e => saveMenage(b.id, field, e.target.value)}>
-                {FREQ_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            ) : (
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>{val}</span>
-            )}
+            <select style={{ ...s.select, width: '60px', textAlign: 'center' }} value={val} onChange={e => saveMenage(b.id, field, e.target.value)}>
+              {FREQ_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
           </td>
         )
       })}
@@ -752,7 +736,7 @@ function IncendieTab({
             <tr>
               <th style={s.thLeft('var(--bg-panel)', 'var(--text-secondary)')}>Succursale</th>
               <th style={s.th()}>Dates d'inspection</th>
-              {isAdmin && <th style={s.th()}>Action</th>}
+              <th style={s.th()}>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -770,19 +754,15 @@ function IncendieTab({
                           <span key={d.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(255,214,0,.15)', color: '#ffd600', border: '1px solid rgba(255,214,0,.3)', borderRadius: '6px', padding: '3px 8px', fontSize: '12px', fontWeight: 600 }}>
                             {d.inspection_date}
                             {d.notes && <span style={{ color: 'rgba(255,214,0,.6)', fontSize: '10px' }}> · {d.notes}</span>}
-                            {isAdmin && (
-                              <button style={{ background: 'none', border: 'none', color: '#f44', cursor: 'pointer', padding: '0 0 0 4px', fontSize: '12px' }} onClick={() => del(d.id)}>×</button>
-                            )}
+                            <button style={{ background: 'none', border: 'none', color: '#f44', cursor: 'pointer', padding: '0 0 0 4px', fontSize: '12px' }} onClick={() => del(d.id)}>×</button>
                           </span>
                         ))}
                       </div>
                     )}
                   </td>
-                  {isAdmin && (
-                    <td style={s.td()}>
-                      <button style={s.btnSm} onClick={() => setModal({ branchId: b.id })}>+ Date</button>
-                    </td>
-                  )}
+                  <td style={s.td()}>
+                    <button style={s.btnSm} onClick={() => setModal({ branchId: b.id })}>+ Date</button>
+                  </td>
                 </tr>
               )
             })}
