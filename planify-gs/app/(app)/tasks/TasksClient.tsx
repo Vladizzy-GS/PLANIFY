@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
-import { eventVisibleOn, todayStr, localDate } from '@/lib/utils/dates'
+import { useCalendarStore } from '@/stores/useCalendarStore'
+import { eventVisibleOn, todayStr, localDate, getMondayOf, addDays } from '@/lib/utils/dates'
 import type { Event, Priority, Employee, Branch, Alert } from '@/types/database'
 
 const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -345,7 +346,7 @@ export default function TasksClient({
   const today = todayStr()
   const todayDate = localDate(today)
 
-  // ─── Employee filtering (mirrors ScheduleClient pattern) ─────────────────────
+  // ─── Employee filtering ───────────────────────────────────────────────────────
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const myEmployeeId = useSessionStore(s => s.myEmployeeId)
   const isAdmin = useSessionStore(s => s.isAdmin)
@@ -355,17 +356,49 @@ export default function TasksClient({
     ? initialPriorities.filter(p => p.employee_id === viewEmpId)
     : initialPriorities
 
-  // Classify events
+  // ─── Week navigation ──────────────────────────────────────────────────────────
+  const calWkStart = useCalendarStore(s => s.wkStart)
+  const setWkStart = useCalendarStore(s => s.setWkStart)
+  const [wkStart, setLocalWkStart] = useState(() => getMondayOf(today))
+
+  // Sync from calendar store on mount (so Horaire week carries over)
+  useEffect(() => {
+    if (calWkStart) setLocalWkStart(calWkStart)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const wkEnd = addDays(wkStart, 6)
+  const wkStartDate = localDate(wkStart)
+  const wkEndDate = localDate(wkEnd)
+  const isCurrentWeek = wkStart === getMondayOf(today)
+
+  const navigateWeek = useCallback((dir: -1 | 1) => {
+    const next = addDays(wkStart, dir * 7)
+    setLocalWkStart(next)
+    setWkStart(next) // keep Horaire in sync
+  }, [wkStart, setWkStart])
+
+  function handleHoraireClick() {
+    setWkStart(wkStart) // ensure calendar opens to this week
+  }
+
+  // ─── Classify events by week ──────────────────────────────────────────────────
   const overdue = viewEvents.filter(ev => {
     const end = localDate(ev.end_date)
-    return end < todayDate && !ev.done
+    return end < wkStartDate && !ev.done
   }).sort((a, b) => b.end_date.localeCompare(a.end_date))
 
   const todayEvts = viewEvents.filter(ev => eventVisibleOn(ev, today))
 
+  // Events within the selected week
+  const weekEvts = viewEvents.filter(ev => {
+    const s = localDate(ev.start_date)
+    const e = localDate(ev.end_date)
+    return s <= wkEndDate && e >= wkStartDate
+  })
+
   const upcoming = viewEvents.filter(ev => {
     const s = localDate(ev.start_date)
-    return s > todayDate && !ev.done
+    return s > wkEndDate && !ev.done
   }).sort((a, b) => a.start_date.localeCompare(b.start_date))
 
   // Group upcoming by date (max 5 days)
@@ -378,9 +411,6 @@ export default function TasksClient({
 
   const activePriorities = viewPriorities.filter(p => p.status !== 'Terminé')
 
-  const totalDone = viewEvents.filter(e => e.done).length
-  const pct = viewEvents.length ? Math.round(totalDone / viewEvents.length * 100) : 0
-
   function handleToggle(updated: Event) {
     setEvents(prev => prev.map(ev => ev.id === updated.id ? updated : ev))
   }
@@ -388,6 +418,12 @@ export default function TasksClient({
   const empty = (msg: string) => (
     <div style={{ textAlign: 'center', padding: '24px', color: 'rgba(255,255,255,.25)', fontSize: '13px' }}>{msg}</div>
   )
+
+  // ─── Week label helpers ───────────────────────────────────────────────────────
+  function fmtDay(d: Date) {
+    return `${d.getDate()} ${MONTHS_FR[d.getMonth()]}`
+  }
+  const weekLabel = `${fmtDay(wkStartDate)} – ${fmtDay(wkEndDate)}`
 
   return (
     <div style={{ padding: '28px 32px' }}>
@@ -398,11 +434,23 @@ export default function TasksClient({
           <h1 style={{ fontFamily: 'var(--font-syne)', fontSize: '24px', fontWeight: 800, color: '#e8e8f0' }}>Tâches</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 13px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.08)', background: '#13131f', fontSize: '13px' }}>
-            <div style={{ width: '60px', height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: '#4CAF50', borderRadius: '2px' }} />
+          {/* Week range navigator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: '#13131f', overflow: 'hidden' }}>
+            <button
+              onClick={() => navigateWeek(-1)}
+              style={{ padding: '8px 11px', background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+            >
+              ‹
+            </button>
+            <div style={{ padding: '0 4px', fontSize: '12px', fontWeight: 700, color: isCurrentWeek ? '#4CC9F0' : '#e8e8f0', whiteSpace: 'nowrap', minWidth: '128px', textAlign: 'center' }}>
+              {weekLabel}
             </div>
-            <span style={{ fontWeight: 700, color: '#e8e8f0', fontSize: '12px' }}>{totalDone}/{viewEvents.length}</span>
+            <button
+              onClick={() => navigateWeek(1)}
+              style={{ padding: '8px 11px', background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+            >
+              ›
+            </button>
           </div>
           <button
             onClick={() => setTacheOpen(true)}
@@ -412,6 +460,7 @@ export default function TasksClient({
           </button>
           <Link
             href="/schedule"
+            onClick={handleHoraireClick}
             style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', letterSpacing: '.02em' }}
           >
             Horaire
@@ -421,10 +470,17 @@ export default function TasksClient({
 
       {/* ── TODAY BOARD (full-width banner) ─────────────────────────────────── */}
       {(() => {
-        const todo    = todayEvts.filter(ev => !ev.done && ev.priority_level !== 'Élevé')
-        const urgent  = todayEvts.filter(ev => !ev.done && ev.priority_level === 'Élevé')
-        const done    = todayEvts.filter(ev => ev.done)
-        const todayPct = todayEvts.length ? Math.round(done.length / todayEvts.length * 100) : 0
+        const todo    = isCurrentWeek
+          ? todayEvts.filter(ev => !ev.done && ev.priority_level !== 'Élevé')
+          : weekEvts.filter(ev => !ev.done && ev.priority_level !== 'Élevé')
+        const urgent  = isCurrentWeek
+          ? todayEvts.filter(ev => !ev.done && ev.priority_level === 'Élevé')
+          : weekEvts.filter(ev => !ev.done && ev.priority_level === 'Élevé')
+        const done    = isCurrentWeek
+          ? todayEvts.filter(ev => ev.done)
+          : weekEvts.filter(ev => ev.done)
+        const boardEvts = isCurrentWeek ? todayEvts : weekEvts
+        const todayPct = boardEvts.length ? Math.round(done.length / boardEvts.length * 100) : 0
 
         const boardCol = (
           label: string,
@@ -490,13 +546,13 @@ export default function TasksClient({
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#4CC9F0', textTransform: 'uppercase', letterSpacing: '.14em', marginBottom: '3px' }}>
-                      Tableau du jour
+                      {isCurrentWeek ? 'Tableau du jour' : 'Semaine'}
                     </div>
                     <div style={{ fontSize: '16px', fontWeight: 700, color: '#e8e8f0' }}>
-                      {DAYS_FR[todayDate.getDay()]}{' '}
-                      <span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 500 }}>
-                        {todayDate.getDate()} {MONTHS_FR[todayDate.getMonth()]}
-                      </span>
+                      {isCurrentWeek
+                        ? <>{DAYS_FR[todayDate.getDay()]}{' '}<span style={{ color: 'rgba(255,255,255,.45)', fontWeight: 500 }}>{todayDate.getDate()} {MONTHS_FR[todayDate.getMonth()]}</span></>
+                        : <span style={{ color: 'rgba(255,255,255,.75)', fontWeight: 500 }}>{weekLabel}</span>
+                      }
                     </div>
                   </div>
                 </div>
@@ -507,7 +563,7 @@ export default function TasksClient({
                 {/* Stats */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#e8e8f0', lineHeight: 1 }}>{todayEvts.length}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#e8e8f0', lineHeight: 1 }}>{boardEvts.length}</div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)', fontWeight: 600, marginTop: '2px', letterSpacing: '.06em' }}>TOTAL</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
@@ -590,7 +646,39 @@ export default function TasksClient({
 
         {/* Right column */}
         <div style={{ display: 'grid', gap: '14px', alignContent: 'start' }}>
-          <Widget icon="◫" title="À venir" badge={upcoming.length} color="#FFB703">
+          {/* Cette semaine — grouped by day, shown when NOT the current week OR always */}
+          {(() => {
+            const wkGroups: Record<string, Event[]> = {}
+            weekEvts.forEach(ev => {
+              const key = ev.start_date
+              if (!wkGroups[key]) wkGroups[key] = []
+              wkGroups[key].push(ev)
+            })
+            const wkDates = Object.keys(wkGroups).sort()
+            return (
+              <Widget icon="◫" title={isCurrentWeek ? 'Cette semaine' : `Semaine du ${fmtDay(wkStartDate)}`} badge={weekEvts.length} color="#4CC9F0">
+                {weekEvts.length === 0
+                  ? empty('Aucune tâche cette semaine')
+                  : <div>
+                      {wkDates.map(dk => {
+                        const d = localDate(dk)
+                        return (
+                          <div key={dk} style={{ marginBottom: '14px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '7px' }}>
+                              {DAYS_FR[d.getDay()]} {d.getDate()} {MONTHS_FR[d.getMonth()]}
+                            </div>
+                            <div style={{ display: 'grid', gap: '6px' }}>
+                              {wkGroups[dk].map(ev => <EventCard key={ev.id} ev={ev} onToggle={handleToggle} />)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                }
+              </Widget>
+            )
+          })()}
+          <Widget icon="▷" title="À venir" badge={upcoming.length} color="#FFB703">
             {upcoming.length === 0
               ? empty('Aucune tâche à venir')
               : <div>
