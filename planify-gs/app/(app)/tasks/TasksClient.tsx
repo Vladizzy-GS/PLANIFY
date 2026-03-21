@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
@@ -9,6 +9,203 @@ import type { Event, Priority, Employee, Branch, Alert } from '@/types/database'
 
 const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
 const MONTHS_FR = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc']
+const TASK_COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0','#3A86FF','#FB5607','#8338EC','#06A77D']
+
+// ─── Tache Creation Modal ─────────────────────────────────────────────────────
+
+function TacheModal({ open, onClose, employees, branches, myEmployeeId, isAdmin, onSaved }: {
+  open: boolean
+  onClose: () => void
+  employees: Employee[]
+  branches: Branch[]
+  myEmployeeId: string | null
+  isAdmin: boolean
+  onSaved: (ev: Event) => void
+}) {
+  const supabase = createClient()
+  const [form, setForm] = useState({
+    title: '', start_date: todayStr(), end_date: todayStr(),
+    all_day: true, start_hour: 9, end_hour: 17,
+    color: '#FF4D6D', priority_level: 'Moyen' as 'Faible' | 'Moyen' | 'Élevé',
+    branch_ids: [] as string[],
+  })
+  const [empId, setEmpId] = useState<string>(myEmployeeId ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: '', start_date: todayStr(), end_date: todayStr(),
+        all_day: true, start_hour: 9, end_hour: 17,
+        color: '#FF4D6D', priority_level: 'Moyen', branch_ids: [],
+      })
+      setEmpId(myEmployeeId ?? '')
+      setErr('')
+    }
+  }, [open, myEmployeeId])
+
+  function toggleBranch(id: string) {
+    setForm(f => ({
+      ...f,
+      branch_ids: f.branch_ids.includes(id)
+        ? f.branch_ids.filter(x => x !== id)
+        : [...f.branch_ids, id],
+    }))
+  }
+
+  async function handleSave() {
+    if (!form.title.trim()) { setErr('Le titre est requis.'); return }
+    if (!empId) { setErr('Sélectionnez un employé.'); return }
+    setSaving(true); setErr('')
+    const payload = {
+      employee_id: empId,
+      title: form.title.trim(),
+      start_date: form.start_date,
+      end_date: form.end_date < form.start_date ? form.start_date : form.end_date,
+      start_hour: form.start_hour,
+      end_hour: form.end_hour,
+      all_day: form.all_day,
+      color: form.color,
+      priority_level: form.priority_level,
+      repeat_rule: 'Aucune',
+      repeat_end_date: null,
+      branch_ids: form.branch_ids,
+      done: false,
+    }
+    const { data, error } = await supabase.from('events').insert(payload).select().single()
+    if (error) { setErr(error.message); setSaving(false); return }
+    onSaved(data as Event)
+    setSaving(false)
+    onClose()
+  }
+
+  if (!open) return null
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '10px 13px',
+    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
+    borderRadius: '9px', color: '#e8e8f0', fontSize: '14px',
+  }
+  const lbl: React.CSSProperties = {
+    display: 'block', fontSize: '11px', fontWeight: 700,
+    color: 'rgba(255,255,255,.4)', letterSpacing: '.08em',
+    textTransform: 'uppercase', marginBottom: '6px',
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.1)', borderRadius: '18px', padding: '28px', width: '490px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <h2 style={{ fontFamily: 'var(--font-syne)', fontSize: '18px', fontWeight: 800, color: '#e8e8f0' }}>Nouvelle tâche</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+        </div>
+
+        <div style={{ display: 'grid', gap: '14px' }}>
+          <div>
+            <label style={lbl}>Titre *</label>
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inp} placeholder="Ex: Vérification équipements" />
+          </div>
+
+          {isAdmin && (
+            <div>
+              <label style={lbl}>Employé *</label>
+              <select value={empId} onChange={e => setEmpId(e.target.value)} style={inp}>
+                <option value="">-- Sélectionner --</option>
+                {employees.map(em => <option key={em.id} value={em.id}>{em.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={lbl}>Date début *</label>
+              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Date fin</label>
+              <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inp} />
+            </div>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={form.all_day} onChange={e => setForm(f => ({ ...f, all_day: e.target.checked }))} style={{ width: '16px', height: '16px', accentColor: '#FF4D6D' }} />
+            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,.6)' }}>Toute la journée</span>
+          </label>
+
+          {!form.all_day && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={lbl}>Heure début</label>
+                <select value={form.start_hour} onChange={e => setForm(f => ({ ...f, start_hour: +e.target.value }))} style={inp}>
+                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}h00</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Heure fin</label>
+                <select value={form.end_hour} onChange={e => setForm(f => ({ ...f, end_hour: +e.target.value }))} style={inp}>
+                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}h00</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label style={lbl}>Priorité</label>
+            <select value={form.priority_level} onChange={e => setForm(f => ({ ...f, priority_level: e.target.value as 'Faible' | 'Moyen' | 'Élevé' }))} style={inp}>
+              <option value="Faible">Faible</option>
+              <option value="Moyen">Moyen</option>
+              <option value="Élevé">Élevé</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={lbl}>Couleur</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {TASK_COLORS.map(c => (
+                <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))} style={{ width: '28px', height: '28px', borderRadius: '8px', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
+              ))}
+            </div>
+          </div>
+
+          {branches.length > 0 && (
+            <div>
+              <label style={lbl}>Succursales concernées</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {branches.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => toggleBranch(b.id)}
+                    style={{
+                      padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                      cursor: 'pointer', border: '1px solid',
+                      borderColor: form.branch_ids.includes(b.id) ? b.color : 'rgba(255,255,255,.15)',
+                      background: form.branch_ids.includes(b.id) ? `${b.color}22` : 'transparent',
+                      color: form.branch_ids.includes(b.id) ? b.color : 'rgba(255,255,255,.4)',
+                    }}
+                  >
+                    {b.short_code}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
+
+          <button
+            onClick={handleSave} disabled={saving}
+            style={{ padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}
+          >
+            {saving ? 'Création…' : 'Créer la tâche'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 function priorityColor(level: string) {
   if (level === 'Élevé') return '#FF4D6D'
@@ -133,7 +330,7 @@ function Widget({ icon, title, badge, color, children }: {
 }
 
 export default function TasksClient({
-  initialEvents, initialPriorities, employees: _employees, branches: _branches, initialTaskAlerts: _initialTaskAlerts,
+  initialEvents, initialPriorities, employees, branches, initialTaskAlerts: _initialTaskAlerts,
 }: {
   initialEvents: Event[]
   initialPriorities: Priority[]
@@ -142,6 +339,7 @@ export default function TasksClient({
   initialTaskAlerts: Alert[]
 }) {
   const [events, setEvents] = useState(initialEvents)
+  const [tacheOpen, setTacheOpen] = useState(false)
   const today = todayStr()
   const todayDate = localDate(today)
 
@@ -204,6 +402,12 @@ export default function TasksClient({
             </div>
             <span style={{ fontWeight: 700, color: '#e8e8f0', fontSize: '12px' }}>{totalDone}/{viewEvents.length}</span>
           </div>
+          <button
+            onClick={() => setTacheOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', letterSpacing: '.02em' }}
+          >
+            + Tâche
+          </button>
           <Link
             href="/schedule"
             style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', letterSpacing: '.02em' }}
@@ -406,6 +610,19 @@ export default function TasksClient({
           </Widget>
         </div>
       </div>
+
+      <TacheModal
+        open={tacheOpen}
+        onClose={() => setTacheOpen(false)}
+        employees={employees}
+        branches={branches}
+        myEmployeeId={myEmployeeId}
+        isAdmin={isAdmin}
+        onSaved={ev => {
+          setEvents(prev => [...prev, ev])
+          setTacheOpen(false)
+        }}
+      />
     </div>
   )
 }

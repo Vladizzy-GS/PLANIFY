@@ -81,3 +81,73 @@ html, body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Native select / dropdown option visibility ─────────────────────────── */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #1c1c2e;
+  color: #e8e8f0;
+}
+[data-theme="light"] select {
+  color-scheme: light;
+}
+[data-theme="light"] select option {
+  background-color: #f0f0f8;
+  color: #0d0d1a;
+}
+
+/* ── Shared modal input / label tokens ──────────────────────────────────── */
+.modal-inp {
+  width: 100%;
+  padding: 10px 13px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 9px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+.modal-inp::placeholder { color: var(--text-muted); }
+.modal-inp:focus { outline: none; border-color: rgba(255,255,255,.22); }
+
+[data-theme="light"] .modal-inp {
+  background: rgba(0,0,0,.04);
+  border-color: rgba(0,0,0,.12);
+}
+
+.modal-lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.72);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-card {
+  background: #13131f;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 18px;
+  padding: 28px;
+  width: 490px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+[data-theme="light"] .modal-card {
+  background: #ffffff;
+  border-color: rgba(0,0,0,.12);
+}
