@@ -8,7 +8,7 @@ import type {
   BatimentDeneigement,
   BatimentDechet,
   BatimentMenage,
-  BatimentInspectionIncendie,
+  BatimentDateRecord,
 } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -19,11 +19,16 @@ interface Props {
   deneigements: BatimentDeneigement[]
   dechets: BatimentDechet[]
   menages: BatimentMenage[]
-  inspectionsIncendie: BatimentInspectionIncendie[]
+  incendies: BatimentDateRecord[]
+  extincteurs: BatimentDateRecord[]
+  preventionIncendie: BatimentDateRecord[]
+  lumiereSecours: BatimentDateRecord[]
+  boiteParadox: BatimentDateRecord[]
+  reservoirEauChaude: BatimentDateRecord[]
   isAdmin: boolean
 }
 
-type Tab = 'inspection' | 'deneigement' | 'dechet' | 'menage' | 'incendie'
+type Tab = 'inspection' | 'deneigement' | 'dechet' | 'menage' | 'incendie' | 'extincteur' | 'prevention' | 'lumiere' | 'paradox' | 'reservoir'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'inspection', label: 'Inspection Bâtiment' },
@@ -31,6 +36,11 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'dechet', label: 'Déchet' },
   { id: 'menage', label: 'Ménage' },
   { id: 'incendie', label: 'Inspection Incendie' },
+  { id: 'extincteur', label: 'Inspection des Extincteurs' },
+  { id: 'prevention', label: 'Prévention Incendie' },
+  { id: 'lumiere', label: 'Lumière de Secours' },
+  { id: 'paradox', label: 'Boite Paradox' },
+  { id: 'reservoir', label: 'Réservoir Eau Chaude' },
 ]
 
 const FREQ_OPTIONS = ['N/A', '1x', '2x', '4x']
@@ -210,6 +220,22 @@ const s = {
     cursor: 'pointer',
     outline: 'none',
   } as React.CSSProperties,
+  filterRow: { display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
+  filterLabel: { fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '2px' } as React.CSSProperties,
+  branchBtn: (active: boolean, color: string): React.CSSProperties => ({
+    padding: '4px 10px', borderRadius: '6px',
+    border: `1px solid ${active ? color : 'var(--border-subtle)'}`,
+    background: active ? color + '22' : 'transparent',
+    color: active ? color : 'var(--text-muted)',
+    fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer', transition: 'all .12s',
+  }),
+  allBtn: (active: boolean): React.CSSProperties => ({
+    padding: '4px 10px', borderRadius: '6px',
+    border: `1px solid ${active ? 'var(--text-secondary)' : 'var(--border-subtle)'}`,
+    background: active ? 'var(--bg-elevated)' : 'transparent',
+    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+    fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer',
+  }),
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -236,7 +262,12 @@ export default function BatimentClient({
   deneigements: initDeneigements,
   dechets: initDechets,
   menages: initMenages,
-  inspectionsIncendie: initIncendie,
+  incendies: initIncendies,
+  extincteurs: initExtincteurs,
+  preventionIncendie: initPrevention,
+  lumiereSecours: initLumiere,
+  boiteParadox: initParadox,
+  reservoirEauChaude: initReservoir,
   isAdmin,
 }: Props) {
   const supabase = createClient()
@@ -245,8 +276,20 @@ export default function BatimentClient({
   const [deneigements, setDeneigements] = useState(initDeneigements)
   const [dechets, setDechets] = useState(initDechets)
   const [menages, setMenages] = useState(initMenages)
-  const [incendies, setIncendies] = useState(initIncendie)
-  const [saving, setSaving] = useState(false)
+  const [incendies, setIncendies] = useState(initIncendies)
+  const [extincteurs, setExtincteurs] = useState(initExtincteurs)
+  const [prevention, setPrevention] = useState(initPrevention)
+  const [lumiere, setLumiere] = useState(initLumiere)
+  const [paradox, setParadox] = useState(initParadox)
+  const [reservoir, setReservoir] = useState(initReservoir)
+
+  // ── Branch filter ─────────────────────────────────────────────────────────
+  const [selectedBranches, setSelectedBranches] = useState<Set<string>>(() => new Set(branches.map(b => b.id)))
+  const filteredBranches = branches.filter(b => selectedBranches.has(b.id))
+  const allSelected = selectedBranches.size === branches.length
+  function toggleBranch(id: string) {
+    setSelectedBranches(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
 
   // ── Inspection Bâtiment helpers ──────────────────────────────────────────
 
@@ -305,8 +348,17 @@ export default function BatimentClient({
   return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <div style={s.title}>Section Bâtiment</div>
+        <div style={s.title}>Bâtiment</div>
         <div style={s.sub}>Gestion des bâtiments par succursale</div>
+      </div>
+
+      {/* Branch filter */}
+      <div style={s.filterRow}>
+        <span style={s.filterLabel}>Succursales :</span>
+        <button style={s.allBtn(allSelected)} onClick={() => setSelectedBranches(allSelected ? new Set() : new Set(branches.map(b => b.id)))}>Toutes</button>
+        {branches.map(b => (
+          <button key={b.id} style={s.branchBtn(selectedBranches.has(b.id), b.color)} onClick={() => toggleBranch(b.id)}>{b.short_code}</button>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -318,48 +370,34 @@ export default function BatimentClient({
 
       {/* Tab content */}
       {tab === 'inspection' && (
-        <InspectionBatimentTab
-          branches={branches}
-          inspections={inspections}
-          getInspDate={getInspDate}
-          saveInspDate={saveInspDate}
-        />
+        <InspectionBatimentTab branches={filteredBranches} inspections={inspections} getInspDate={getInspDate} saveInspDate={saveInspDate} />
       )}
       {tab === 'deneigement' && (
-        <DeneigementTab
-          branches={branches}
-          deneigements={deneigements}
-          setDeneigements={setDeneigements}
-          isAdmin={isAdmin}
-          supabase={supabase}
-        />
+        <DeneigementTab branches={filteredBranches} deneigements={deneigements} setDeneigements={setDeneigements} isAdmin={isAdmin} supabase={supabase} />
       )}
       {tab === 'dechet' && (
-        <DechetTab
-          branches={branches}
-          dechets={dechets}
-          getDechet={getDechet}
-          saveDechet={saveDechet}
-          isAdmin={isAdmin}
-        />
+        <DechetTab branches={filteredBranches} dechets={dechets} getDechet={getDechet} saveDechet={saveDechet} isAdmin={isAdmin} />
       )}
       {tab === 'menage' && (
-        <MenageTab
-          branches={branches}
-          menages={menages}
-          getMenage={getMenage}
-          saveMenage={saveMenage}
-          isAdmin={isAdmin}
-        />
+        <MenageTab branches={filteredBranches} menages={menages} getMenage={getMenage} saveMenage={saveMenage} isAdmin={isAdmin} />
       )}
       {tab === 'incendie' && (
-        <IncendieTab
-          branches={branches}
-          incendies={incendies}
-          setIncendies={setIncendies}
-          isAdmin={isAdmin}
-          supabase={supabase}
-        />
+        <GenericDateTab tableName="batiment_inspection_incendie" branches={filteredBranches} rows={incendies} setRows={setIncendies} supabase={supabase} />
+      )}
+      {tab === 'extincteur' && (
+        <GenericDateTab tableName="batiment_extincteur" branches={filteredBranches} rows={extincteurs} setRows={setExtincteurs} supabase={supabase} />
+      )}
+      {tab === 'prevention' && (
+        <GenericDateTab tableName="batiment_prevention_incendie" branches={filteredBranches} rows={prevention} setRows={setPrevention} supabase={supabase} />
+      )}
+      {tab === 'lumiere' && (
+        <GenericDateTab tableName="batiment_lumiere_secours" branches={filteredBranches} rows={lumiere} setRows={setLumiere} supabase={supabase} />
+      )}
+      {tab === 'paradox' && (
+        <GenericDateTab tableName="batiment_boite_paradox" branches={filteredBranches} rows={paradox} setRows={setParadox} supabase={supabase} />
+      )}
+      {tab === 'reservoir' && (
+        <GenericDateTab tableName="batiment_reservoir_eau_chaude" branches={filteredBranches} rows={reservoir} setRows={setReservoir} supabase={supabase} />
       )}
     </div>
   )
@@ -696,15 +734,15 @@ function MenageTab({ branches, menages, getMenage, saveMenage, isAdmin }: {
   )
 }
 
-// ─── Tab: Inspection Incendie Ville ──────────────────────────────────────────
+// ─── Generic Date Tab (Incendie, Extincteurs, Prévention, Lumière, Paradox, Réservoir) ──
 
-function IncendieTab({
-  branches, incendies, setIncendies, isAdmin, supabase,
+function GenericDateTab({
+  tableName, branches, rows, setRows, supabase,
 }: {
+  tableName: string
   branches: Branch[]
-  incendies: BatimentInspectionIncendie[]
-  setIncendies: React.Dispatch<React.SetStateAction<BatimentInspectionIncendie[]>>
-  isAdmin: boolean
+  rows: BatimentDateRecord[]
+  setRows: React.Dispatch<React.SetStateAction<BatimentDateRecord[]>>
   supabase: ReturnType<typeof createClient>
 }) {
   const [modal, setModal] = useState<{ branchId: string } | null>(null)
@@ -715,8 +753,8 @@ function IncendieTab({
   async function addDate() {
     if (!modal || !newDate) return
     setSaving(true)
-    const { data } = await supabase.from('batiment_inspection_incendie').insert({ branch_id: modal.branchId, inspection_date: newDate, notes: newNotes || null }).select().single()
-    if (data) setIncendies(prev => [data, ...prev])
+    const { data } = await supabase.from(tableName).insert({ branch_id: modal.branchId, inspection_date: newDate, notes: newNotes || null }).select().single()
+    if (data) setRows(prev => [data as BatimentDateRecord, ...prev])
     setSaving(false)
     setModal(null)
     setNewDate('')
@@ -724,8 +762,8 @@ function IncendieTab({
   }
 
   async function del(id: string) {
-    await supabase.from('batiment_inspection_incendie').delete().eq('id', id)
-    setIncendies(prev => prev.filter(i => i.id !== id))
+    await supabase.from(tableName).delete().eq('id', id)
+    setRows(prev => prev.filter(r => r.id !== id))
   }
 
   return (
@@ -741,7 +779,7 @@ function IncendieTab({
           </thead>
           <tbody>
             {branches.map(b => {
-              const dates = incendies.filter(i => i.branch_id === b.id).sort((a, z) => z.inspection_date.localeCompare(a.inspection_date))
+              const dates = rows.filter(r => r.branch_id === b.id).sort((a, z) => z.inspection_date.localeCompare(a.inspection_date))
               return (
                 <tr key={b.id}>
                   <td style={{ ...s.tdLeft(b.color + '22', b.color), fontWeight: 700 }}>{b.short_code}</td>
@@ -771,7 +809,7 @@ function IncendieTab({
       </div>
 
       {modal && (
-        <Modal title="Ajouter date d'inspection incendie" onClose={() => setModal(null)}>
+        <Modal title="Ajouter une date" onClose={() => setModal(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Date d'inspection</label>

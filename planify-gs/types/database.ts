@@ -319,6 +319,36 @@ export type Database = {
         Update: Partial<{ inspection_date: string; notes: string | null }>
         Relationships: []
       }
+      batiment_extincteur: {
+        Row: BatimentDateRecord
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
+      batiment_prevention_incendie: {
+        Row: BatimentDateRecord
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
+      batiment_lumiere_secours: {
+        Row: BatimentDateRecord
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
+      batiment_boite_paradox: {
+        Row: BatimentDateRecord
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
+      batiment_reservoir_eau_chaude: {
+        Row: BatimentDateRecord
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -382,6 +412,21 @@ export type BatimentInspectionIncendie = {
   notes: string | null
   created_at: string
 }
+
+// Shared shape for equipment inspection date-list tabs
+export type BatimentDateRecord = {
+  id: string
+  branch_id: string
+  inspection_date: string
+  notes: string | null
+  created_at: string
+}
+
+export type BatimentExtincteur = BatimentDateRecord
+export type BatimentPreventionIncendie = BatimentDateRecord
+export type BatimentLumiereSecours = BatimentDateRecord
+export type BatimentBoiteParadox = BatimentDateRecord
+export type BatimentReservoirEauChaude = BatimentDateRecord
 
 // ─── Role type ─────────────────────────────────────────────────────────────────
 
