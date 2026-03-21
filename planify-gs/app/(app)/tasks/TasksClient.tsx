@@ -240,7 +240,6 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
         start_date: form.start_date,
         end_date: endDate,
         due_date: endDate,
-        branch_ids: form.branch_ids,
         linked_event_id: data.id,
         rank: 0,
         description: '',
