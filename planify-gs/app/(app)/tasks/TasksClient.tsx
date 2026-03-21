@@ -1,16 +1,162 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/stores/useSessionStore'
 import { useCalendarStore } from '@/stores/useCalendarStore'
-import { eventVisibleOn, todayStr, localDate, getMondayOf, addDays } from '@/lib/utils/dates'
+import { eventVisibleOn, todayStr, localDate, getMondayOf, addDays, dateStr, getMonthStart } from '@/lib/utils/dates'
 import type { Event, Priority, Employee, Branch, Alert } from '@/types/database'
 
 const DAYS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+const DAYS_SHORT = ['Lu','Ma','Me','Je','Ve','Sa','Di']
 const MONTHS_FR = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc']
+const MONTHS_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TASK_COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0','#3A86FF','#FB5607','#8338EC','#06A77D']
+
+// ─── Week Picker Popup ────────────────────────────────────────────────────────
+
+function WeekPickerPopup({ anchorRef, currentWkStart, today, onSelect, onClose }: {
+  anchorRef: React.RefObject<HTMLDivElement | null>
+  currentWkStart: string
+  today: string
+  onSelect: (monday: string) => void
+  onClose: () => void
+}) {
+  const [monthStart, setMonthStart] = useState(() => getMonthStart(currentWkStart))
+  const [hoverWk, setHoverWk] = useState<string | null>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (
+        popRef.current && !popRef.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [anchorRef, onClose])
+
+  // Build month grid (Mon–Sun rows)
+  const monthDate = localDate(monthStart)
+  const year = monthDate.getFullYear()
+  const month = monthDate.getMonth()
+
+  // First Monday on or before the 1st of the month
+  const firstDay = new Date(year, month, 1)
+  const firstMonday = getMondayOf(dateStr(firstDay))
+
+  // Generate up to 6 week rows
+  const weeks: string[] = []
+  let cur = firstMonday
+  for (let i = 0; i < 6; i++) {
+    weeks.push(cur)
+    const next = addDays(cur, 7)
+    // Stop if the next week starts after the last day of the month
+    const nextDate = localDate(next)
+    if (nextDate.getMonth() !== month && nextDate > new Date(year, month + 1, 0)) break
+    if (nextDate.getMonth() > month && nextDate.getFullYear() >= year) {
+      // include if the week overlaps the month at all
+      const sunDate = localDate(addDays(cur, 6))
+      if (sunDate.getMonth() < month) break
+    }
+    cur = next
+  }
+
+  function prevMonth() {
+    const d = localDate(monthStart)
+    d.setMonth(d.getMonth() - 1)
+    setMonthStart(getMonthStart(dateStr(d)))
+  }
+  function nextMonth() {
+    const d = localDate(monthStart)
+    d.setMonth(d.getMonth() + 1)
+    setMonthStart(getMonthStart(dateStr(d)))
+  }
+
+  // Position the popup below the anchor
+  const anchorRect = anchorRef.current?.getBoundingClientRect()
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    top: anchorRect ? anchorRect.bottom + 6 : 60,
+    left: anchorRect ? anchorRect.left : 0,
+    zIndex: 2000,
+    background: '#13131f',
+    border: '1px solid rgba(255,255,255,.12)',
+    borderRadius: '14px',
+    padding: '14px',
+    boxShadow: '0 12px 40px rgba(0,0,0,.6)',
+    minWidth: '236px',
+  }
+
+  return (
+    <div ref={popRef} style={style}>
+      {/* Month header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <button onClick={prevMonth} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '16px', padding: '2px 6px' }}>‹</button>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#e8e8f0' }}>
+          {MONTHS_FULL[month]} {year}
+        </span>
+        <button onClick={nextMonth} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '16px', padding: '2px 6px' }}>›</button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '2px', marginBottom: '4px' }}>
+        {DAYS_SHORT.map(d => (
+          <div key={d} style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,.3)', textAlign: 'center', letterSpacing: '.04em' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Week rows */}
+      <div style={{ display: 'grid', gap: '2px' }}>
+        {weeks.map(wkMon => {
+          const days = Array.from({ length: 7 }, (_, i) => addDays(wkMon, i))
+          const isSelected = wkMon === currentWkStart
+          const isHovered = wkMon === hoverWk
+          const rowBg = isSelected ? 'rgba(76,201,240,.18)' : isHovered ? 'rgba(255,255,255,.07)' : 'transparent'
+          const rowBorder = isSelected ? '1px solid rgba(76,201,240,.35)' : '1px solid transparent'
+
+          return (
+            <div
+              key={wkMon}
+              onMouseEnter={() => setHoverWk(wkMon)}
+              onMouseLeave={() => setHoverWk(null)}
+              onClick={() => { onSelect(wkMon); onClose() }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '2px', borderRadius: '8px', background: rowBg, border: rowBorder, cursor: 'pointer', padding: '2px' }}
+            >
+              {days.map(dayStr => {
+                const d = localDate(dayStr)
+                const inMonth = d.getMonth() === month
+                const isToday = dayStr === today
+                return (
+                  <div key={dayStr} style={{
+                    height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', fontWeight: isToday ? 800 : 500,
+                    color: isToday ? '#4CC9F0' : inMonth ? '#e8e8f0' : 'rgba(255,255,255,.2)',
+                    borderRadius: '6px',
+                    background: isToday ? 'rgba(76,201,240,.12)' : 'transparent',
+                  }}>
+                    {d.getDate()}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* "Cette semaine" shortcut */}
+      <button
+        onClick={() => { onSelect(getMondayOf(today)); onClose() }}
+        style={{ marginTop: '10px', width: '100%', padding: '7px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: 'rgba(255,255,255,.6)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+      >
+        Cette semaine
+      </button>
+    </div>
+  )
+}
 
 // ─── Tache Creation Modal ─────────────────────────────────────────────────────
 
@@ -343,6 +489,8 @@ export default function TasksClient({
 }) {
   const [events, setEvents] = useState(initialEvents)
   const [tacheOpen, setTacheOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerAnchorRef = useRef<HTMLDivElement>(null)
   const today = todayStr()
   const todayDate = localDate(today)
 
@@ -435,16 +583,19 @@ export default function TasksClient({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Week range navigator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: '#13131f', overflow: 'hidden' }}>
+          <div ref={pickerAnchorRef} style={{ display: 'flex', alignItems: 'center', gap: '0', borderRadius: '10px', border: `1px solid ${pickerOpen ? 'rgba(76,201,240,.4)' : 'rgba(255,255,255,.1)'}`, background: '#13131f', overflow: 'hidden', position: 'relative' }}>
             <button
               onClick={() => navigateWeek(-1)}
               style={{ padding: '8px 11px', background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
             >
               ‹
             </button>
-            <div style={{ padding: '0 4px', fontSize: '12px', fontWeight: 700, color: isCurrentWeek ? '#4CC9F0' : '#e8e8f0', whiteSpace: 'nowrap', minWidth: '128px', textAlign: 'center' }}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              style={{ padding: '6px 4px', background: 'none', border: 'none', fontSize: '12px', fontWeight: 700, color: isCurrentWeek ? '#4CC9F0' : '#e8e8f0', whiteSpace: 'nowrap', minWidth: '128px', textAlign: 'center', cursor: 'pointer' }}
+            >
               {weekLabel}
-            </div>
+            </button>
             <button
               onClick={() => navigateWeek(1)}
               style={{ padding: '8px 11px', background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
@@ -452,6 +603,15 @@ export default function TasksClient({
               ›
             </button>
           </div>
+          {pickerOpen && (
+            <WeekPickerPopup
+              anchorRef={pickerAnchorRef}
+              currentWkStart={wkStart}
+              today={today}
+              onSelect={monday => { setLocalWkStart(monday); setWkStart(monday) }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
           <button
             onClick={() => setTacheOpen(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', letterSpacing: '.02em' }}
