@@ -219,7 +219,7 @@ function AlertModal({ open, onClose, onSaved, employees }: {
           <div>
             <label style={lbl}>Période</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
-              <input type="date" value={form.alert_start} onChange={e => setForm(f => ({ ...f, alert_start: e.target.value, alert_end: f.alert_end && f.alert_end < e.target.value ? '' : f.alert_end }))} style={inp} />
+              <input type="date" value={form.alert_start} onChange={e => setForm(f => ({ ...f, alert_start: e.target.value, alert_end: !f.alert_end || f.alert_end < e.target.value ? e.target.value : f.alert_end }))} style={inp} />
               <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.3)', fontWeight: 600, textAlign: 'center' }}>→</span>
               <input type="date" value={form.alert_end} min={form.alert_start || undefined} onChange={e => setForm(f => ({ ...f, alert_end: e.target.value }))} style={inp} />
             </div>

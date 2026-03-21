@@ -364,7 +364,7 @@ function PriorityModal({
                 <input type="date" value={form.start_date} onChange={e => {
                   const v = e.target.value
                   set('start_date', v)
-                  if (form.end_date && v > form.end_date) set('end_date', v)
+                  if (!form.end_date || v > form.end_date) set('end_date', v)
                 }} style={inp} />
               </div>
               <div>
