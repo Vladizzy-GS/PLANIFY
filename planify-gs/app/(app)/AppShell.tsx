@@ -44,6 +44,13 @@ const NAV = [
     ),
   },
   {
+    href: '/batiment', label: 'Bâtiment', icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    ),
+  },
+  {
     href: '/tasks', label: 'Tâches', badge: 'task', icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
@@ -68,13 +75,6 @@ const NAV = [
     href: '/alerts', label: 'Alertes', badge: 'alert', icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/batiment', label: 'Bâtiment', icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
     ),
   },
@@ -297,8 +297,8 @@ const navItemStyle = (active: boolean) => ({
   borderRadius: '10px',
   textDecoration: 'none',
   color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-  background: active ? 'rgba(255,77,109,.13)' : 'transparent',
-  border: active ? '1px solid rgba(255,77,109,.22)' : '1px solid transparent',
+  background: active ? 'rgba(180,180,190,.15)' : 'transparent',
+  border: active ? '1px solid rgba(180,180,190,.25)' : '1px solid transparent',
   marginBottom: '2px',
   fontSize: '13px',
   fontWeight: active ? 600 : 400,
@@ -307,7 +307,7 @@ const navItemStyle = (active: boolean) => ({
 })
 
 const navIconStyle = (active: boolean) => ({
-  color: active ? '#FF4D6D' : 'var(--text-muted)',
+  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
   flexShrink: 0,
 })
 
