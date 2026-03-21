@@ -77,164 +77,134 @@ const ROW_TEXT: Record<string, string> = {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = {
-  wrap: { padding: '24px 28px', minHeight: '100vh', background: 'var(--bg-base)' } as React.CSSProperties,
+  wrap: { padding: '28px 32px', minHeight: '100vh', background: 'var(--bg-base)' } as React.CSSProperties,
   header: { marginBottom: '20px' } as React.CSSProperties,
-  title: { fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' } as React.CSSProperties,
+  title: { fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', letterSpacing: '-0.2px' } as React.CSSProperties,
   sub: { fontSize: '13px', color: 'var(--text-muted)' } as React.CSSProperties,
-  tabs: { display: 'flex', gap: '4px', marginBottom: '20px', flexWrap: 'wrap' as const } as React.CSSProperties,
-  tab: (active: boolean): React.CSSProperties => ({
-    padding: '7px 16px',
-    borderRadius: '8px',
-    border: '1px solid',
-    borderColor: active ? '#FF4D6D' : 'var(--border-subtle)',
-    background: active ? 'rgba(255,77,109,.12)' : 'var(--bg-elevated)',
-    color: active ? '#FF4D6D' : 'var(--text-secondary)',
-    fontSize: '13px',
-    fontWeight: active ? 600 : 400,
-    cursor: 'pointer',
-    transition: 'all .15s',
+  // Branch filter
+  filterRow: { display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
+  filterLabel: { fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginRight: '4px' } as React.CSSProperties,
+  branchBtn: (active: boolean, color: string): React.CSSProperties => ({
+    padding: '4px 12px', borderRadius: '20px',
+    border: `1.5px solid ${active ? color : 'var(--border-subtle)'}`,
+    background: active ? color : 'transparent',
+    color: active ? '#fff' : 'var(--text-muted)',
+    fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all .12s',
   }),
+  allBtn: (active: boolean): React.CSSProperties => ({
+    padding: '4px 12px', borderRadius: '20px',
+    border: '1.5px solid var(--border-subtle)',
+    background: 'transparent',
+    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+    fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer',
+  }),
+  // Tabs — underline style
+  tabBar: { display: 'flex', gap: '0', marginBottom: '24px', flexWrap: 'wrap' as const, borderBottom: '2px solid var(--border-subtle)' } as React.CSSProperties,
+  tab: (active: boolean): React.CSSProperties => ({
+    padding: '9px 16px',
+    border: 'none',
+    borderBottom: `2px solid ${active ? '#FF4D6D' : 'transparent'}`,
+    background: 'transparent',
+    color: active ? '#FF4D6D' : 'var(--text-muted)',
+    fontSize: '13px', fontWeight: active ? 600 : 400,
+    cursor: 'pointer', transition: 'color .15s',
+    marginBottom: '-2px', whiteSpace: 'nowrap' as const,
+  }),
+  // Card
   card: {
     background: 'var(--bg-elevated)',
     border: '1px solid var(--border-subtle)',
-    borderRadius: '12px',
-    overflow: 'auto',
+    borderRadius: '10px', overflow: 'auto',
   } as React.CSSProperties,
-  legend: {
-    display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' as const, alignItems: 'center',
-  } as React.CSSProperties,
+  // Season section header (Déchet / Ménage)
+  sectionHead: (accent: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '10px',
+    padding: '10px 14px', marginBottom: '12px',
+    borderLeft: `3px solid ${accent}`,
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border-subtle)',
+    borderLeftWidth: '3px',
+    borderRadius: '0 8px 8px 0',
+  }),
+  // Legend
+  legend: { display: 'flex', gap: '14px', marginBottom: '14px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
   legendItem: (): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px',
-    color: 'var(--text-secondary)',
+    display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)',
   }),
   legendDot: (color: string): React.CSSProperties => ({
-    width: '14px', height: '14px', borderRadius: '3px', background: color, flexShrink: 0,
+    width: '10px', height: '10px', borderRadius: '2px', background: color, flexShrink: 0,
   }),
   // Table
-  tbl: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '12px' } as React.CSSProperties,
+  tbl: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '13px' } as React.CSSProperties,
   th: (bg?: string, color?: string): React.CSSProperties => ({
-    padding: '8px 10px',
+    padding: '10px 12px',
     background: bg ?? 'var(--bg-panel)',
     color: color ?? 'var(--text-secondary)',
-    fontWeight: 700,
-    textAlign: 'center' as const,
-    border: '1px solid var(--border-subtle)',
+    fontWeight: 700, textAlign: 'center' as const,
+    borderBottom: '2px solid var(--border-subtle)',
+    borderRight: '1px solid var(--border-subtle)',
     whiteSpace: 'nowrap' as const,
-    position: 'sticky' as const,
-    top: 0,
-    zIndex: 2,
+    position: 'sticky' as const, top: 0, zIndex: 2,
+    fontSize: '12px', letterSpacing: '0.05em',
   }),
   thLeft: (bg?: string, color?: string): React.CSSProperties => ({
-    padding: '8px 12px',
+    padding: '10px 14px',
     background: bg ?? 'var(--bg-panel)',
-    color: color ?? 'var(--text-secondary)',
-    fontWeight: 700,
-    textAlign: 'left' as const,
-    border: '1px solid var(--border-subtle)',
+    color: color ?? 'var(--text-muted)',
+    fontWeight: 700, textAlign: 'left' as const,
+    borderBottom: '2px solid var(--border-subtle)',
+    borderRight: '1px solid var(--border-subtle)',
     whiteSpace: 'nowrap' as const,
-    position: 'sticky' as const,
-    left: 0,
-    zIndex: 3,
+    position: 'sticky' as const, left: 0, zIndex: 3,
+    fontSize: '11px', textTransform: 'uppercase' as const, letterSpacing: '0.06em',
   }),
   td: (bg?: string, color?: string): React.CSSProperties => ({
-    padding: '6px 8px',
-    border: '1px solid var(--border-subtle)',
-    background: bg ?? 'transparent',
+    padding: '8px 10px',
+    borderBottom: '1px solid var(--border-subtle)',
+    borderRight: '1px solid var(--border-subtle)',
+    background: bg ?? 'var(--bg-base)',
     color: color ?? 'var(--text-primary)',
-    textAlign: 'center' as const,
-    verticalAlign: 'middle' as const,
-    minWidth: '90px',
+    textAlign: 'center' as const, verticalAlign: 'middle' as const, minWidth: '110px',
   }),
   tdLeft: (bg?: string, color?: string): React.CSSProperties => ({
-    padding: '6px 12px',
-    border: '1px solid var(--border-subtle)',
+    padding: '8px 14px',
+    borderBottom: '1px solid var(--border-subtle)',
+    borderRight: '1px solid var(--border-subtle)',
     background: bg ?? 'var(--bg-panel)',
     color: color ?? 'var(--text-primary)',
-    textAlign: 'left' as const,
-    verticalAlign: 'middle' as const,
-    fontWeight: 600,
-    position: 'sticky' as const,
-    left: 0,
-    zIndex: 1,
-    whiteSpace: 'nowrap' as const,
+    textAlign: 'left' as const, verticalAlign: 'middle' as const,
+    fontWeight: 600, position: 'sticky' as const, left: 0, zIndex: 1,
+    whiteSpace: 'nowrap' as const, fontSize: '12px',
   }),
+  // Date input — visible border
   dateInput: {
-    background: 'transparent',
-    border: 'none',
-    outline: 'none',
-    color: 'inherit',
-    fontSize: '11px',
-    width: '90px',
-    textAlign: 'center' as const,
-    cursor: 'pointer',
-    padding: '2px',
-    borderRadius: '4px',
-  } as React.CSSProperties,
-  btn: {
-    padding: '6px 14px',
-    borderRadius: '8px',
-    border: 'none',
-    background: '#FF4D6D',
-    color: '#fff',
-    fontWeight: 600,
-    fontSize: '13px',
-    cursor: 'pointer',
-  } as React.CSSProperties,
-  btnSm: {
-    padding: '4px 10px',
-    borderRadius: '6px',
-    border: 'none',
-    background: '#FF4D6D',
-    color: '#fff',
-    fontWeight: 600,
-    fontSize: '11px',
-    cursor: 'pointer',
-  } as React.CSSProperties,
-  btnGhost: {
-    padding: '4px 10px',
-    borderRadius: '6px',
+    background: 'var(--bg-panel)',
     border: '1px solid var(--border-subtle)',
-    background: 'transparent',
-    color: 'var(--text-secondary)',
-    fontWeight: 500,
-    fontSize: '11px',
-    cursor: 'pointer',
+    outline: 'none', color: 'var(--text-primary)',
+    fontSize: '12px', width: '128px',
+    textAlign: 'center' as const, cursor: 'pointer',
+    padding: '5px 6px', borderRadius: '6px',
   } as React.CSSProperties,
-  inp: {
-    padding: '6px 10px',
-    borderRadius: '8px',
+  // Frequency select (Déchet / Ménage)
+  freqSelect: {
+    padding: '5px 8px', borderRadius: '6px',
     border: '1px solid var(--border-subtle)',
-    background: 'var(--bg-base)',
-    color: 'var(--text-primary)',
-    fontSize: '13px',
-    outline: 'none',
-    width: '100%',
+    background: 'var(--bg-panel)', color: 'var(--text-primary)',
+    fontSize: '12px', cursor: 'pointer', outline: 'none',
+    width: '72px', textAlign: 'center' as const, fontWeight: 600,
   } as React.CSSProperties,
-  select: {
-    padding: '4px 8px',
-    borderRadius: '6px',
-    border: '1px solid var(--border-subtle)',
-    background: 'var(--bg-base)',
-    color: 'var(--text-primary)',
-    fontSize: '12px',
-    cursor: 'pointer',
-    outline: 'none',
-  } as React.CSSProperties,
-  filterRow: { display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
-  filterLabel: { fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '2px' } as React.CSSProperties,
-  branchBtn: (active: boolean, color: string): React.CSSProperties => ({
-    padding: '4px 10px', borderRadius: '6px',
-    border: `1px solid ${active ? color : 'var(--border-subtle)'}`,
-    background: active ? color + '22' : 'transparent',
-    color: active ? color : 'var(--text-muted)',
-    fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer', transition: 'all .12s',
-  }),
-  allBtn: (active: boolean): React.CSSProperties => ({
-    padding: '4px 10px', borderRadius: '6px',
-    border: `1px solid ${active ? 'var(--text-secondary)' : 'var(--border-subtle)'}`,
-    background: active ? 'var(--bg-elevated)' : 'transparent',
-    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-    fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer',
+  // Buttons
+  btn: { padding: '8px 18px', borderRadius: '8px', border: 'none', background: '#FF4D6D', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' } as React.CSSProperties,
+  btnSm: { padding: '5px 12px', borderRadius: '6px', border: 'none', background: '#FF4D6D', color: '#fff', fontWeight: 600, fontSize: '12px', cursor: 'pointer' } as React.CSSProperties,
+  btnGhost: { padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '13px', cursor: 'pointer' } as React.CSSProperties,
+  btnIcon: { padding: '3px 7px', borderRadius: '5px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer', lineHeight: '1' } as React.CSSProperties,
+  inp: { padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const } as React.CSSProperties,
+  select: { padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '13px', cursor: 'pointer', outline: 'none', width: '100%' } as React.CSSProperties,
+  // Date chip for GenericDateTab
+  dateChip: (): React.CSSProperties => ({
+    display: 'inline-flex', alignItems: 'center', gap: '8px',
+    background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+    borderRadius: '8px', padding: '5px 10px', fontSize: '12px', color: 'var(--text-primary)',
   }),
 }
 
@@ -362,7 +332,7 @@ export default function BatimentClient({
       </div>
 
       {/* Tabs */}
-      <div style={s.tabs}>
+      <div style={s.tabBar}>
         {TABS.map(t => (
           <button key={t.id} style={s.tab(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
@@ -376,10 +346,10 @@ export default function BatimentClient({
         <DeneigementTab branches={filteredBranches} deneigements={deneigements} setDeneigements={setDeneigements} supabase={supabase} />
       )}
       {tab === 'dechet' && (
-        <DechetTab branches={filteredBranches} dechets={dechets} getDechet={getDechet} saveDechet={saveDechet} isAdmin={isAdmin} />
+        <DechetTab branches={filteredBranches} getDechet={getDechet} saveDechet={saveDechet} />
       )}
       {tab === 'menage' && (
-        <MenageTab branches={filteredBranches} menages={menages} getMenage={getMenage} saveMenage={saveMenage} isAdmin={isAdmin} />
+        <MenageTab branches={filteredBranches} getMenage={getMenage} saveMenage={saveMenage} />
       )}
       {tab === 'incendie' && (
         <GenericDateTab tableName="batiment_inspection_incendie" branches={filteredBranches} rows={incendies} setRows={setIncendies} supabase={supabase} />
@@ -538,31 +508,36 @@ function DeneigementTab({
           return (
             <div key={b.id} style={{ ...s.card, padding: '0', overflow: 'hidden' }}>
               {/* Branch header */}
-              <div style={{ background: b.color, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#fff', fontWeight: 800, fontSize: '15px' }}>{b.short_code}</span>
-                <span style={{ color: 'rgba(255,255,255,.75)', fontSize: '11px' }}>{b.name}</span>
+              <div style={{ padding: '12px 16px', borderBottom: `3px solid ${b.color}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.color, boxShadow: `0 0 6px ${b.color}` }} />
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '14px' }}>{b.short_code}</span>
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{b.name}</span>
               </div>
-              <div style={{ padding: '12px' }}>
+              <div style={{ padding: '14px' }}>
                 {ROLE_ORDER.map(role => {
                   const contacts = byRole[role] ?? []
                   return (
-                    <div key={role} style={{ marginBottom: '10px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.06em' }}>
-                        {ROLE_LABELS[role]}
+                    <div key={role} style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                        <div style={{ height: '1px', width: '12px', background: 'var(--border-subtle)' }} />
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{ROLE_LABELS[role]}</span>
+                        <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
                       </div>
                       {contacts.length === 0 ? (
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>—</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', paddingLeft: '4px' }}>—</div>
                       ) : (
                         contacts.map(c => (
-                          <div key={c.id} style={{ fontSize: '12px', color: 'var(--text-primary)', marginBottom: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                            <div>
-                              {c.company_name && <div style={{ fontWeight: 600 }}>{c.company_name}</div>}
-                              {c.contact_name && <div>{c.contact_name}</div>}
-                              {c.phone && <div style={{ color: 'var(--text-muted)' }}>{c.phone}</div>}
+                          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginBottom: '6px', background: 'var(--bg-base)' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {c.company_name && <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1px' }}>{c.company_name}</div>}
+                              {c.contact_name && <div style={{ color: 'var(--text-secondary)' }}>{c.contact_name}</div>}
+                              {c.phone && <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '1px' }}>{c.phone}</div>}
                             </div>
                             <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                              <button style={s.btnGhost} onClick={() => openEdit(c)}>✎</button>
-                              <button style={{ ...s.btnGhost, color: '#f44' }} onClick={() => del(c.id)}>×</button>
+                              <button style={s.btnIcon} onClick={() => openEdit(c)}>✎</button>
+                              <button style={{ ...s.btnIcon, color: '#f55' }} onClick={() => del(c.id)}>×</button>
                             </div>
                           </div>
                         ))
@@ -570,7 +545,7 @@ function DeneigementTab({
                     </div>
                   )
                 })}
-                <button style={{ ...s.btnSm, marginTop: '6px', width: '100%' }} onClick={() => openAdd(b.id)}>+ Ajouter contact</button>
+                <button style={{ ...s.btnSm, marginTop: '4px', width: '100%' }} onClick={() => openAdd(b.id)}>+ Ajouter contact</button>
               </div>
             </div>
           )
@@ -582,7 +557,7 @@ function DeneigementTab({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Rôle</label>
-              <select style={s.select} value={form.contact_role} onChange={e => setForm(f => ({ ...f, contact_role: e.target.value }))}>
+              <select style={{ ...s.select, marginTop: '4px' }} value={form.contact_role} onChange={e => setForm(f => ({ ...f, contact_role: e.target.value }))}>
                 {ROLE_ORDER.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
               </select>
             </div>
@@ -622,11 +597,7 @@ function FreqCell({
   onSave: (branchId: string, field: DechetField, val: string) => Promise<void>
 }) {
   return (
-    <select
-      style={{ ...s.select, width: '60px', textAlign: 'center' }}
-      value={value}
-      onChange={e => onSave(branchId, field, e.target.value)}
-    >
+    <select style={s.freqSelect} value={value} onChange={e => onSave(branchId, field, e.target.value)}>
       {FREQ_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
   )
@@ -634,14 +605,14 @@ function FreqCell({
 
 function DechetTab({ branches, getDechet, saveDechet }: {
   branches: Branch[]
-  dechets: BatimentDechet[]
   getDechet: (id: string) => BatimentDechet | undefined
   saveDechet: (branchId: string, field: DechetField, val: string) => Promise<void>
-  isAdmin: boolean
 }) {
-  const seasonTable = (season: 'haute' | 'basse', title: string, bg: string) => (
-    <div style={{ marginBottom: '24px' }}>
-      <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '10px', padding: '8px 14px', background: bg, borderRadius: '8px' }}>{title}</div>
+  const seasonTable = (season: 'haute' | 'basse', title: string, accent: string) => (
+    <div style={{ marginBottom: '28px' }}>
+      <div style={s.sectionHead(accent)}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</span>
+      </div>
       <div style={s.card}>
         <table style={s.tbl}>
           <thead>
@@ -674,8 +645,8 @@ function DechetTab({ branches, getDechet, saveDechet }: {
 
   return (
     <div>
-      {seasonTable('haute', 'Fréquence par Mois — Saison Haute (Avril–Octobre)', 'rgba(255,214,0,.12)')}
-      {seasonTable('basse', 'Fréquence par Mois — Saison Basse (Novembre–Mars)', 'rgba(255,77,109,.08)')}
+      {seasonTable('haute', 'Saison Haute — Avril à Octobre', '#FCBF49')}
+      {seasonTable('basse', 'Saison Basse — Novembre à Mars', '#4CC9F0')}
     </div>
   )
 }
@@ -684,10 +655,8 @@ function DechetTab({ branches, getDechet, saveDechet }: {
 
 function MenageTab({ branches, getMenage, saveMenage }: {
   branches: Branch[]
-  menages: BatimentMenage[]
   getMenage: (id: string) => BatimentMenage | undefined
   saveMenage: (branchId: string, field: 'haute_freq' | 'basse_freq', val: string) => Promise<void>
-  isAdmin: boolean
 }) {
   const seasonRow = (field: 'haute_freq' | 'basse_freq', _label: string) => (
     <tr key={field}>
@@ -697,7 +666,7 @@ function MenageTab({ branches, getMenage, saveMenage }: {
         const val = row?.[field] ?? 'N/A'
         return (
           <td key={b.id} style={s.td()}>
-            <select style={{ ...s.select, width: '60px', textAlign: 'center' }} value={val} onChange={e => saveMenage(b.id, field, e.target.value)}>
+            <select style={s.freqSelect} value={val} onChange={e => saveMenage(b.id, field, e.target.value)}>
               {FREQ_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </td>
@@ -706,9 +675,11 @@ function MenageTab({ branches, getMenage, saveMenage }: {
     </tr>
   )
 
-  const tbl = (title: string, bg: string, field: 'haute_freq' | 'basse_freq') => (
-    <div style={{ marginBottom: '24px' }}>
-      <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '10px', padding: '8px 14px', background: bg, borderRadius: '8px' }}>{title}</div>
+  const tbl = (title: string, accent: string, field: 'haute_freq' | 'basse_freq') => (
+    <div style={{ marginBottom: '28px' }}>
+      <div style={s.sectionHead(accent)}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</span>
+      </div>
       <div style={s.card}>
         <table style={s.tbl}>
           <thead>
@@ -725,8 +696,8 @@ function MenageTab({ branches, getMenage, saveMenage }: {
 
   return (
     <div>
-      {tbl('Fréquence par Mois — Saison Haute (Avril–Octobre)', 'rgba(255,214,0,.12)', 'haute_freq')}
-      {tbl('Fréquence par Mois — Saison Basse (Novembre–Mars)', 'rgba(255,77,109,.08)', 'basse_freq')}
+      {tbl('Saison Haute — Avril à Octobre', '#FCBF49', 'haute_freq')}
+      {tbl('Saison Basse — Novembre à Mars', '#4CC9F0', 'basse_freq')}
     </div>
   )
 }
@@ -743,6 +714,7 @@ function GenericDateTab({
   supabase: ReturnType<typeof createClient>
 }) {
   const [modal, setModal] = useState<{ branchId: string } | null>(null)
+  const [editRow, setEditRow] = useState<{ id: string; inspection_date: string; notes: string } | null>(null)
   const [newDate, setNewDate] = useState('')
   const [newNotes, setNewNotes] = useState('')
   const [saving, setSaving] = useState(false)
@@ -757,6 +729,16 @@ function GenericDateTab({
     setModal(null)
     setNewDate('')
     setNewNotes('')
+  }
+
+  async function updateDate() {
+    if (!editRow || !editRow.inspection_date) return
+    setSaving(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any).from(tableName).update({ inspection_date: editRow.inspection_date, notes: editRow.notes || null }).eq('id', editRow.id).select().single()
+    if (data) setRows(prev => prev.map(r => r.id === (data as BatimentDateRecord).id ? data as BatimentDateRecord : r))
+    setSaving(false)
+    setEditRow(null)
   }
 
   async function del(id: string) {
