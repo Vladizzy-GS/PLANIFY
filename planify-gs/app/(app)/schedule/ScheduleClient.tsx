@@ -75,6 +75,7 @@ function EventModal({
         repeat_end_date: event.repeat_end_date ?? '',
         branch_ids: event.branch_ids ?? [],
         done: event.done,
+        add_to_priorities: false,
       })
       setEmpId(event.employee_id)
     } else {
