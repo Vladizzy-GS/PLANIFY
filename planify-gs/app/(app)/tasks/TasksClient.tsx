@@ -177,6 +177,7 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
     all_day: true, start_hour: 9, end_hour: 17,
     color: '#FF4D6D', priority_level: 'Moyen' as 'Faible' | 'Moyen' | 'Élevé',
     branch_ids: [] as string[],
+    add_to_priorities: false,
   })
   const [empId, setEmpId] = useState<string>(defaultEmpId)
   const [saving, setSaving] = useState(false)
@@ -188,6 +189,7 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
         title: '', start_date: todayStr(), end_date: todayStr(),
         all_day: true, start_hour: 9, end_hour: 17,
         color: '#FF4D6D', priority_level: 'Moyen', branch_ids: [],
+        add_to_priorities: false,
       })
       setEmpId((isAdmin && selectedEmployeeId) ? selectedEmployeeId : (myEmployeeId ?? ''))
       setErr('')
@@ -224,6 +226,27 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
     }
     const { data, error } = await supabase.from('events').insert(payload).select().single()
     if (error) { setErr(error.message); setSaving(false); return }
+
+    // Also create a linked priority if requested
+    if (form.add_to_priorities && data) {
+      const endDate = form.end_date < form.start_date ? form.start_date : form.end_date
+      await supabase.from('priorities').insert({
+        employee_id: empId,
+        title: form.title.trim(),
+        color: form.color,
+        priority_level: form.priority_level,
+        status: 'À faire' as const,
+        start_date: form.start_date,
+        end_date: endDate,
+        due_date: endDate,
+        branch_ids: form.branch_ids,
+        linked_event_id: data.id,
+        rank: 0,
+        description: '',
+        notes: '',
+      })
+    }
+
     onSaved(data as Event)
     setSaving(false)
     onClose()
@@ -340,13 +363,48 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
             </div>
           )}
 
+          {/* Add to priorities toggle */}
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, add_to_priorities: !f.add_to_priorities }))}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              padding: '12px 14px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
+              border: `1px solid ${form.add_to_priorities ? 'rgba(76,201,240,.4)' : 'rgba(255,255,255,.1)'}`,
+              background: form.add_to_priorities ? 'rgba(76,201,240,.08)' : 'rgba(255,255,255,.03)',
+              transition: 'all .15s', width: '100%',
+            }}
+          >
+            {/* Pill toggle */}
+            <div style={{
+              width: '36px', height: '20px', borderRadius: '10px', flexShrink: 0, position: 'relative',
+              background: form.add_to_priorities ? '#4CC9F0' : 'rgba(255,255,255,.15)',
+              transition: 'background .2s',
+            }}>
+              <div style={{
+                position: 'absolute', top: '3px',
+                left: form.add_to_priorities ? '19px' : '3px',
+                width: '14px', height: '14px', borderRadius: '50%', background: '#fff',
+                transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+              }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: form.add_to_priorities ? '#4CC9F0' : 'rgba(255,255,255,.7)' }}>
+                Ajouter aux priorités
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.35)', marginTop: '1px' }}>
+                Crée également une priorité liée à cette tâche
+              </div>
+            </div>
+          </button>
+
           {err && <div style={{ fontSize: '13px', color: '#FF4D6D', textAlign: 'center' }}>{err}</div>}
 
           <button
             onClick={handleSave} disabled={saving}
             style={{ padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#FF4D6D,#F77F00)', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? .7 : 1 }}
           >
-            {saving ? 'Création…' : 'Créer la tâche'}
+            {saving ? 'Création…' : form.add_to_priorities ? 'Créer la tâche + priorité' : 'Créer la tâche'}
           </button>
         </div>
       </div>
