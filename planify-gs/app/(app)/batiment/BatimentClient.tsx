@@ -103,7 +103,7 @@ const s = {
   legend: {
     display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' as const, alignItems: 'center',
   } as React.CSSProperties,
-  legendItem: (color: string, textColor: string): React.CSSProperties => ({
+  legendItem: (): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px',
     color: 'var(--text-secondary)',
   }),
@@ -288,7 +288,7 @@ export default function BatimentClient({
   const filteredBranches = branches.filter(b => selectedBranches.has(b.id))
   const allSelected = selectedBranches.size === branches.length
   function toggleBranch(id: string) {
-    setSelectedBranches(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setSelectedBranches(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) }; return n })
   }
 
   // ── Inspection Bâtiment helpers ──────────────────────────────────────────
@@ -373,7 +373,7 @@ export default function BatimentClient({
         <InspectionBatimentTab branches={filteredBranches} inspections={inspections} getInspDate={getInspDate} saveInspDate={saveInspDate} />
       )}
       {tab === 'deneigement' && (
-        <DeneigementTab branches={filteredBranches} deneigements={deneigements} setDeneigements={setDeneigements} isAdmin={isAdmin} supabase={supabase} />
+        <DeneigementTab branches={filteredBranches} deneigements={deneigements} setDeneigements={setDeneigements} supabase={supabase} />
       )}
       {tab === 'dechet' && (
         <DechetTab branches={filteredBranches} dechets={dechets} getDechet={getDechet} saveDechet={saveDechet} isAdmin={isAdmin} />
@@ -407,7 +407,6 @@ export default function BatimentClient({
 
 function InspectionBatimentTab({
   branches,
-  inspections,
   getInspDate,
   saveInspDate,
 }: {
@@ -422,7 +421,7 @@ function InspectionBatimentTab({
       <div style={s.legend}>
         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Légende :</span>
         {(['annuel', 'semestriel', 'mensuel'] as const).map(type => (
-          <div key={type} style={s.legendItem(ROW_BG[type], ROW_TEXT[type])}>
+          <div key={type} style={s.legendItem()}>
             <div style={s.legendDot(ROW_BG[type])} />
             <span>{type.toUpperCase()}</span>
           </div>
@@ -488,12 +487,11 @@ type DenForm = { contact_role: string; company_name: string; contact_name: strin
 const EMPTY_DEN: DenForm = { contact_role: 'deneigement', company_name: '', contact_name: '', phone: '' }
 
 function DeneigementTab({
-  branches, deneigements, setDeneigements, isAdmin, supabase,
+  branches, deneigements, setDeneigements, supabase,
 }: {
   branches: Branch[]
   deneigements: BatimentDeneigement[]
   setDeneigements: React.Dispatch<React.SetStateAction<BatimentDeneigement[]>>
-  isAdmin: boolean
   supabase: ReturnType<typeof createClient>
 }) {
   const [modal, setModal] = useState<{ branchId: string; edit?: BatimentDeneigement } | null>(null)
@@ -635,7 +633,7 @@ function FreqCell({
   )
 }
 
-function DechetTab({ branches, dechets, getDechet, saveDechet, isAdmin }: {
+function DechetTab({ branches, getDechet, saveDechet }: {
   branches: Branch[]
   dechets: BatimentDechet[]
   getDechet: (id: string) => BatimentDechet | undefined
@@ -685,14 +683,14 @@ function DechetTab({ branches, dechets, getDechet, saveDechet, isAdmin }: {
 
 // ─── Tab: Ménage ──────────────────────────────────────────────────────────────
 
-function MenageTab({ branches, menages, getMenage, saveMenage, isAdmin }: {
+function MenageTab({ branches, getMenage, saveMenage }: {
   branches: Branch[]
   menages: BatimentMenage[]
   getMenage: (id: string) => BatimentMenage | undefined
   saveMenage: (branchId: string, field: 'haute_freq' | 'basse_freq', val: string) => Promise<void>
   isAdmin: boolean
 }) {
-  const seasonRow = (field: 'haute_freq' | 'basse_freq', label: string) => (
+  const seasonRow = (field: 'haute_freq' | 'basse_freq', _label: string) => (
     <tr key={field}>
       <td style={s.tdLeft()}>Ménage</td>
       {branches.map(b => {
@@ -753,7 +751,8 @@ function GenericDateTab({
   async function addDate() {
     if (!modal || !newDate) return
     setSaving(true)
-    const { data } = await supabase.from(tableName).insert({ branch_id: modal.branchId, inspection_date: newDate, notes: newNotes || null }).select().single()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any).from(tableName).insert({ branch_id: modal.branchId, inspection_date: newDate, notes: newNotes || null }).select().single()
     if (data) setRows(prev => [data as BatimentDateRecord, ...prev])
     setSaving(false)
     setModal(null)
@@ -762,7 +761,8 @@ function GenericDateTab({
   }
 
   async function del(id: string) {
-    await supabase.from(tableName).delete().eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from(tableName).delete().eq('id', id)
     setRows(prev => prev.filter(r => r.id !== id))
   }
 

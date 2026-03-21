@@ -93,7 +93,7 @@ function alrtColor(t: string) {
 }
 
 // ── Employee Panel ──────────────────────────────────────────────────────────
-function EmpPanel({ emp, stats, branches, priorities, allPriorities, alerts, compact }: {
+function EmpPanel({ emp, stats, compact }: {
   emp: Employee
   stats: ReturnType<typeof empStats>
   branches: Branch[]
@@ -643,7 +643,6 @@ export default function AdminDashboardClient({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px,1fr))', gap: '7px' }}>
             {branches.map(b => {
-              const deplCount = allEvents.filter(e => inRange(e, dateFrom, dateTo) && e.branch_ids?.includes(b.id)).length
               const empIds = displayEmps.map(e => e.id)
               const filteredDepl = allEvents.filter(e => empIds.includes(e.employee_id) && inRange(e, dateFrom, dateTo) && e.branch_ids?.includes(b.id)).length
               return (
