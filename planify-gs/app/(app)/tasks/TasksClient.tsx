@@ -168,7 +168,7 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
   myEmployeeId: string | null
   selectedEmployeeId: string | null
   isAdmin: boolean
-  onSaved: (ev: Event) => void
+  onSaved: (ev: Event, priority?: Priority) => void
 }) {
   const supabase = createClient()
   const defaultEmpId = (isAdmin && selectedEmployeeId) ? selectedEmployeeId : (myEmployeeId ?? '')
@@ -228,9 +228,10 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
     if (error) { setErr(error.message); setSaving(false); return }
 
     // Also create a linked priority if requested
+    let newPriority: Priority | undefined
     if (form.add_to_priorities && data) {
       const endDate = form.end_date < form.start_date ? form.start_date : form.end_date
-      await supabase.from('priorities').insert({
+      const { data: pData, error: pError } = await supabase.from('priorities').insert({
         employee_id: empId,
         title: form.title.trim(),
         color: form.color,
@@ -244,10 +245,12 @@ function TacheModal({ open, onClose, employees, branches, myEmployeeId, selected
         rank: 0,
         description: '',
         notes: '',
-      })
+      }).select().single()
+      if (pError) { setErr('Tâche créée mais erreur priorité: ' + pError.message); setSaving(false); return }
+      newPriority = pData as Priority
     }
 
-    onSaved(data as Event)
+    onSaved(data as Event, newPriority)
     setSaving(false)
     onClose()
   }
@@ -546,6 +549,7 @@ export default function TasksClient({
   initialTaskAlerts: Alert[]
 }) {
   const [events, setEvents] = useState(initialEvents)
+  const [priorities, setPriorities] = useState(initialPriorities)
   const [tacheOpen, setTacheOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerAnchorRef = useRef<HTMLDivElement>(null)
@@ -559,8 +563,8 @@ export default function TasksClient({
   const viewEmpId = isAdmin ? (selectedEmployeeId || null) : myEmployeeId
   const viewEvents = viewEmpId ? events.filter(ev => ev.employee_id === viewEmpId) : events
   const viewPriorities = viewEmpId
-    ? initialPriorities.filter(p => p.employee_id === viewEmpId)
-    : initialPriorities
+    ? priorities.filter(p => p.employee_id === viewEmpId)
+    : priorities
 
   // ─── Week navigation ──────────────────────────────────────────────────────────
   const calWkStart = useCalendarStore(s => s.wkStart)
@@ -927,8 +931,9 @@ export default function TasksClient({
         myEmployeeId={myEmployeeId}
         selectedEmployeeId={selectedEmployeeId}
         isAdmin={isAdmin}
-        onSaved={ev => {
+        onSaved={(ev, priority) => {
           setEvents(prev => [...prev, ev])
+          if (priority) setPriorities(prev => [...prev, priority])
           setTacheOpen(false)
         }}
       />
