@@ -619,7 +619,6 @@ function FreqCell({
   value: string
   branchId: string
   field: DechetField
-  isAdmin: boolean
   onSave: (branchId: string, field: DechetField, val: string) => Promise<void>
 }) {
   return (
@@ -661,7 +660,7 @@ function DechetTab({ branches, getDechet, saveDechet }: {
                   const val = row?.[field] ?? 'N/A'
                   return (
                     <td key={b.id} style={s.td()}>
-                      <FreqCell value={val} branchId={b.id} field={field} isAdmin={isAdmin} onSave={saveDechet} />
+                      <FreqCell value={val} branchId={b.id} field={field} onSave={saveDechet} />
                     </td>
                   )
                 })}
