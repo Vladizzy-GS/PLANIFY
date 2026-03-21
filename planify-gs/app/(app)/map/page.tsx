@@ -20,7 +20,7 @@ export default async function MapPage() {
     <MapClient
       initialSuppliers={(suppliersRes.data ?? []) as unknown as Parameters<typeof MapClient>[0]['initialSuppliers']}
       branches={(branchesRes.data ?? []) as Parameters<typeof MapClient>[0]['branches']}
-      isAdmin={profile?.role === 'admin'}
+      isAdmin={profile?.role === 'admin' || profile?.role === 'superuser'}
     />
   )
 }

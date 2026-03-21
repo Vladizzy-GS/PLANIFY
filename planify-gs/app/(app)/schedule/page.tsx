@@ -17,7 +17,7 @@ export default async function SchedulePage() {
   ])
 
   const profile = profileRes.data
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superuser'
   const myEmployeeId = profile?.employee_id ?? null
 
   return (

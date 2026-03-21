@@ -31,7 +31,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       selectedEmployeeId: prev.selectedEmployeeId !== null
         ? prev.selectedEmployeeId
         : employeeId,
-      isAdmin: role === 'admin',
+      isAdmin: role === 'admin' || role === 'superuser',
     })),
 
   setSelectedEmployee: (employeeId) =>

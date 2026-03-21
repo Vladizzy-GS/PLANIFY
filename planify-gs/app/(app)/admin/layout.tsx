@@ -14,7 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq('id', user.id)
     .single() as { data: { role: string } | null }
 
-  if (profile?.role !== 'admin') redirect('/schedule')
+  if (profile?.role !== 'admin' && profile?.role !== 'superuser') redirect('/schedule')
 
   return <>{children}</>
 }

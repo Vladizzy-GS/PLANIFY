@@ -29,7 +29,7 @@ export default function SettingsClient({
   initialEmployees: Employee[]
   currentPin?: string
 }) {
-  const isAdmin = role === 'admin'
+  const isAdmin = role === 'admin' || role === 'superuser'
   const supabase = createClient()
   const router = useRouter()
 

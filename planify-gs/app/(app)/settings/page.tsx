@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('role, display_name').eq('id', user.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superuser'
 
   const [employeesRes, pinRes] = await Promise.all([
     isAdmin ? supabase.from('employees').select('*').order('name') : Promise.resolve({ data: [] }),

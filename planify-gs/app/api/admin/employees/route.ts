@@ -28,6 +28,9 @@ function sanitizeEmpFields(fields: Record<string, unknown>) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -48,6 +51,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -63,6 +69,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const limited = checkRateLimit(request)
+  if (limited) return limited
+
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
