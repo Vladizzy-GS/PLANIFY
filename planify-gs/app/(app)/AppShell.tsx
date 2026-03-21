@@ -377,7 +377,7 @@ export default function AppShell({
 
   // ─── Employee creation modal ─────────────────────────────────────────────────
   const [localEmps, setLocalEmps] = useState(employees)
-  const [empsOpen, setEmpsOpen] = useState(true)
+  const [empsOpen, setEmpsOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const GRADS = [
     'linear-gradient(135deg,#FF4D6D,#F77F00)',
@@ -532,16 +532,16 @@ export default function AppShell({
           </div>
         )}
 
-        {/* Employee list */}
+        {/* Employee list — always shows first 2; extras collapsible when 3+ */}
         <div style={collapsed ? { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } : st.section}>
           {!collapsed && (
             <div style={st.sectionLabel}>
               <button
-                onClick={() => localEmps.length >= 2 && setEmpsOpen(v => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, cursor: localEmps.length >= 2 ? 'pointer' : 'default', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}
-                title={localEmps.length >= 2 ? (empsOpen ? 'Réduire' : 'Développer') : undefined}
+                onClick={() => localEmps.length > 2 && setEmpsOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, cursor: localEmps.length > 2 ? 'pointer' : 'default', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}
+                title={localEmps.length > 2 ? (empsOpen ? 'Réduire' : 'Développer') : undefined}
               >
-                {localEmps.length >= 2 && <span style={{ fontSize: '9px', lineHeight: 1 }}>{empsOpen ? '▾' : '▸'}</span>}
+                {localEmps.length > 2 && <span style={{ fontSize: '9px', lineHeight: 1 }}>{empsOpen ? '▾' : '▸'}</span>}
                 Employés
               </button>
               {isAdmin && (
@@ -553,8 +553,10 @@ export default function AppShell({
               )}
             </div>
           )}
-          {(collapsed || empsOpen) && localEmps.map(emp => (
-            collapsed ? (
+          {localEmps.map((emp, idx) => {
+            // Always show first 2; extras only when empsOpen (or collapsed icon mode)
+            if (!collapsed && idx >= 2 && !empsOpen) return null
+            return collapsed ? (
               <div key={emp.id} style={{ ...avatarStyle(emp.avatar_gradient), cursor: isAdmin ? 'pointer' : 'default', border: isAdmin && selectedEmployeeId === emp.id ? '2px solid var(--text-primary)' : '2px solid transparent' }} onClick={isAdmin ? () => handleSelectEmployee(emp.id) : undefined} title={emp.name}>
                 {emp.initials}
               </div>
@@ -572,7 +574,13 @@ export default function AppShell({
                 )}
               </div>
             )
-          ))}
+          })}
+          {/* "X de plus" hint when extras are hidden */}
+          {!collapsed && !empsOpen && localEmps.length > 2 && (
+            <button onClick={() => setEmpsOpen(true)} style={{ background: 'none', border: 'none', padding: '3px 4px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', textAlign: 'left' as const }}>
+              +{localEmps.length - 2} de plus…
+            </button>
+          )}
           {collapsed && isAdmin && (
             <button onClick={() => setAddOpen(true)} style={{ width: '32px', height: '20px', borderRadius: '6px', border: '1px dashed var(--border-normal)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Ajouter un employé">+</button>
           )}
