@@ -140,7 +140,6 @@ function EventModal({
           status: 'À faire' as const,
           rank: nextRank,
           linked_event_id: savedEvent.id,
-          alert_linked: false,
         })
       }
       onSaved(savedEvent)
