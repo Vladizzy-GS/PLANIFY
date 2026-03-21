@@ -761,6 +761,7 @@ export default function ScheduleClient({
   myEmployeeId: string | null
   isAdmin: boolean
 }) {
+  const supabase = createClient()
   const {
     calMode, wkStart, dayView, monView, showWeekends, schedFilter,
     setCalMode, setWkStart, setDayView, setMonView, toggleWeekends, setSchedFilter, goToToday,
