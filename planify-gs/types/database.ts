@@ -289,6 +289,36 @@ export type Database = {
         Update: Partial<AppSettings>
         Relationships: []
       }
+      batiment_inspection: {
+        Row: BatimentInspection
+        Insert: { id?: string; branch_id: string; period: string; period_type: 'annuel' | 'semestriel' | 'mensuel'; inspection_date?: string | null; notes?: string | null }
+        Update: Partial<{ period_type: 'annuel' | 'semestriel' | 'mensuel'; inspection_date: string | null; notes: string | null; updated_at: string }>
+        Relationships: []
+      }
+      batiment_deneigement: {
+        Row: BatimentDeneigement
+        Insert: { id?: string; branch_id: string; contact_role: string; company_name?: string | null; contact_name?: string | null; phone?: string | null; sort_order?: number }
+        Update: Partial<{ contact_role: string; company_name: string | null; contact_name: string | null; phone: string | null; sort_order: number; updated_at: string }>
+        Relationships: []
+      }
+      batiment_dechet: {
+        Row: BatimentDechet
+        Insert: { id?: string; branch_id: string; haute_dechet?: string; haute_recyclage?: string; basse_dechet?: string; basse_recyclage?: string }
+        Update: Partial<{ haute_dechet: string; haute_recyclage: string; basse_dechet: string; basse_recyclage: string; updated_at: string }>
+        Relationships: []
+      }
+      batiment_menage: {
+        Row: BatimentMenage
+        Insert: { id?: string; branch_id: string; haute_freq?: string; basse_freq?: string }
+        Update: Partial<{ haute_freq: string; basse_freq: string; updated_at: string }>
+        Relationships: []
+      }
+      batiment_inspection_incendie: {
+        Row: BatimentInspectionIncendie
+        Insert: { id?: string; branch_id: string; inspection_date: string; notes?: string | null }
+        Update: Partial<{ inspection_date: string; notes: string | null }>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -298,6 +328,59 @@ export type Database = {
     Enums: Record<never, never>
     CompositeTypes: Record<never, never>
   }
+}
+
+// ─── Section Bâtiment types ────────────────────────────────────────────────────
+
+export type BatimentInspection = {
+  id: string
+  branch_id: string
+  period: string          // '2025', '2025-06', '2025-07'
+  period_type: 'annuel' | 'semestriel' | 'mensuel'
+  inspection_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BatimentDeneigement = {
+  id: string
+  branch_id: string
+  contact_role: string    // 'deneigement' | 'deglacage' | 'plan_b' | 'plan_c' | 'responsable'
+  company_name: string | null
+  contact_name: string | null
+  phone: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type BatimentDechet = {
+  id: string
+  branch_id: string
+  haute_dechet: string    // '1x' | '2x' | '4x' | 'N/A'
+  haute_recyclage: string
+  basse_dechet: string
+  basse_recyclage: string
+  created_at: string
+  updated_at: string
+}
+
+export type BatimentMenage = {
+  id: string
+  branch_id: string
+  haute_freq: string      // '1x' | '2x' | '4x' | 'N/A'
+  basse_freq: string
+  created_at: string
+  updated_at: string
+}
+
+export type BatimentInspectionIncendie = {
+  id: string
+  branch_id: string
+  inspection_date: string
+  notes: string | null
+  created_at: string
 }
 
 // ─── Role type ─────────────────────────────────────────────────────────────────
