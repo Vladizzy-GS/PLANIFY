@@ -110,11 +110,12 @@ export type Alert = {
   employee_id: string | null
   title: string
   message: string
-  alert_type: 'warn' | 'info' | 'task-assigned'
+  alert_type: 'warn' | 'info' | 'task-assigned' | 'urgent' | 'information'
   frequency: string
   alert_date: string | null
   time_of_day: string | null
-  link_type: '' | 'event' | 'priority'
+  link_type: '' | 'event' | 'priority' | 'task'
+  category: 'Horaire' | 'Tache' | 'Priorité' | ''
   link_id: string | null
   add_to_schedule: boolean
   sms_enabled: boolean
@@ -207,8 +208,9 @@ export type SupplierInsert = Omit<Supplier, 'id' | 'created_at' | 'updated_at'> 
   lat?: number | null
   lng?: number | null
 }
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'time_of_day' | 'link_id' | 'sms_phone' | 'created_by'> & {
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'time_of_day' | 'link_id' | 'sms_phone' | 'created_by' | 'category'> & {
   id?: string
+  category?: Alert['category']
   time_of_day?: string | null
   link_type?: Alert['link_type']
   link_id?: string | null

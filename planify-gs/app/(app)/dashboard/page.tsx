@@ -1,0 +1,40 @@
+import { createClient } from '@/lib/supabase/server'
+import DashboardClient from './DashboardClient'
+import type { Alert, Event, Priority } from '@/types/database'
+
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('employee_id, display_name, role')
+    .single()
+
+  const empId = profile?.employee_id ?? null
+
+  const [alertsRes, eventsRes, prioritiesRes] = await Promise.all([
+    supabase
+      .from('alerts')
+      .select('*')
+      .or(empId ? `employee_id.eq.${empId},employee_id.is.null` : 'employee_id.is.null')
+      .eq('is_read', false)
+      .order('created_at', { ascending: false }),
+    empId
+      ? supabase.from('events').select('*').eq('employee_id', empId).gte('start_date', new Date().toISOString().slice(0, 10)).order('start_date').limit(5)
+      : { data: [] },
+    empId
+      ? supabase.from('priorities').select('*').eq('employee_id', empId).neq('status', 'Terminé').order('rank').limit(5)
+      : { data: [] },
+  ])
+
+  return (
+    <DashboardClient
+      displayName={profile?.display_name ?? null}
+      alerts={(alertsRes.data ?? []) as Alert[]}
+      upcomingEvents={(eventsRes.data ?? []) as Event[]}
+      activePriorities={(prioritiesRes.data ?? []) as Priority[]}
+    />
+  )
+}
