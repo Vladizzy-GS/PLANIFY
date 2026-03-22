@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ConfirmModal from '@/app/components/ConfirmModal'
 import { useSessionStore } from '@/stores/useSessionStore'
-import { localDate, todayStr } from '@/lib/utils/dates'
+import { useCalendarStore } from '@/stores/useCalendarStore'
+import { localDate, todayStr, getMondayOf } from '@/lib/utils/dates'
 import type { Priority, PriorityPart, Branch, Event } from '@/types/database'
 
 const COLORS = ['#FF4D6D','#F77F00','#FCBF49','#4CC9F0','#7B2FBE','#06D6A0','#3A86FF','#FB5607','#8338EC','#06A77D']
@@ -33,28 +35,6 @@ const EMPTY_FORM = {
   due_date: '', notes: '',
   start_date: '', end_date: '',
   branch_ids: [] as string[],
-  frequency_type: '' as '' | 'mensuel' | 'semestriel' | 'annuel',
-}
-
-// ─── Batiment sync helpers ────────────────────────────────────────────────────
-
-function getPeriodFromDate(date: string, frequencyType: string): { period: string; period_type: 'mensuel' | 'semestriel' | 'annuel' } {
-  const parts = date.split('-')
-  const year = parseInt(parts[0], 10)
-  const month = parseInt(parts[1], 10)
-  if (frequencyType === 'mensuel') {
-    return { period: `${year}-${String(month).padStart(2, '0')}`, period_type: 'mensuel' }
-  } else if (frequencyType === 'semestriel') {
-    return { period: month <= 6 ? `${year}-S1` : `${year}-S2`, period_type: 'semestriel' }
-  } else {
-    return { period: `${year}`, period_type: 'annuel' }
-  }
-}
-
-const FREQ_BADGE: Record<string, { label: string; color: string }> = {
-  mensuel:     { label: 'Mensuel',    color: '#4caf50' },
-  semestriel:  { label: 'Semi-ann.', color: '#ffd600' },
-  annuel:      { label: 'Annuel',     color: '#00bcd4' },
 }
 
 // ─── Priority Modal ─────────────────────────────────────────────────────────────
@@ -100,7 +80,6 @@ function PriorityModal({
         notes: priority.notes,
         start_date: priority.start_date ?? '', end_date: priority.end_date ?? '',
         branch_ids: priority.branch_ids ?? [],
-        frequency_type: (priority.frequency_type ?? '') as '' | 'mensuel' | 'semestriel' | 'annuel',
       })
       const hasParts = priority.parts.length > 0
       setParts(priority.parts.map(p => ({ label: p.label, done: p.done })))
@@ -119,8 +98,6 @@ function PriorityModal({
     setSplitPreset(preset)
     if (preset === 'Inspection succursales') {
       setParts(branches.map(b => ({ label: `${b.short_code} — ${b.name}`, done: false })))
-      // Default to monthly since building inspections are typically monthly
-      if (!form.frequency_type) set('frequency_type', 'mensuel')
     } else if (preset === '3 parties') {
       setParts([{ label: '', done: false }, { label: '', done: false }, { label: '', done: false }])
     } else if (preset === '5 parties') {
@@ -177,7 +154,7 @@ function PriorityModal({
       branch_ids: splitEnabled ? [] : form.branch_ids,
       notes: form.notes,
       linked_event_id: tab === 'from-event' && selectedEventId ? selectedEventId : (priority?.linked_event_id ?? null),
-      frequency_type: splitEnabled && form.frequency_type ? form.frequency_type : null,
+      frequency_type: null,
     }
 
     if (priority) {
@@ -370,37 +347,6 @@ function PriorityModal({
                 <button onClick={addPart} style={{ padding: '9px 14px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,.08)', color: '#e8e8f0', cursor: 'pointer', fontWeight: 600 }}>+</button>
               </div>
 
-              {/* Frequency type — for batiment sync */}
-              <div>
-                <label style={lbl}>Fréquence d'inspection (sync Bâtiment)</label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {(['mensuel', 'semestriel', 'annuel'] as const).map(ft => {
-                    const cfg = FREQ_BADGE[ft]
-                    const active = form.frequency_type === ft
-                    return (
-                      <button
-                        key={ft}
-                        type="button"
-                        onClick={() => set('frequency_type', active ? '' : ft)}
-                        style={{
-                          flex: 1, padding: '8px 6px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                          border: `1.5px solid ${active ? cfg.color : 'rgba(255,255,255,.12)'}`,
-                          background: active ? `${cfg.color}22` : 'transparent',
-                          color: active ? cfg.color : 'rgba(255,255,255,.4)',
-                          transition: 'all .15s',
-                        }}
-                      >
-                        {cfg.label}
-                      </button>
-                    )
-                  })}
-                </div>
-                {form.frequency_type && (
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginTop: '5px', paddingLeft: '2px' }}>
-                    Cocher une succursale demandera la date d'inspection → synchronisée dans Bâtiment
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -485,7 +431,7 @@ function PriorityModal({
 
 function PriorityRow({
   p, rank, isFirst, isLast, branches,
-  onEdit, onMoveUp, onMoveDown, onToggleLock, onTogglePart, onEditPartDate,
+  onEdit, onTitleClick, onMoveUp, onMoveDown, onToggleLock, onTogglePart, onEditPartDate, onNavigateToDate,
 }: {
   p: PriorityWithParts
   rank: number
@@ -493,11 +439,13 @@ function PriorityRow({
   isLast: boolean
   branches: Branch[]
   onEdit: () => void
+  onTitleClick: () => void
   onMoveUp: () => void
   onMoveDown: () => void
   onToggleLock: () => void
   onTogglePart: (partId: string, done: boolean) => void
   onEditPartDate: (partId: string) => void
+  onNavigateToDate: (date: string) => void
 }) {
   const pc = priorityColor(p.priority_level)
   const sc = statusColor(p.status)
@@ -506,6 +454,8 @@ function PriorityRow({
   const pct = totalParts ? Math.round(doneParts / totalParts * 100) : null
   const isOverdue = p.due_date && p.due_date < todayStr() && p.status !== 'Terminé'
   const [partsOpen, setPartsOpen] = useState(totalParts <= 4)
+  const [calPickerDate, setCalPickerDate] = useState(p.end_date || p.due_date || p.start_date || todayStr())
+  const [showCalPicker, setShowCalPicker] = useState(false)
 
   const btnStyle: React.CSSProperties = {
     padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
@@ -533,19 +483,47 @@ function PriorityRow({
         </div>
 
         {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onEdit}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{p.title}</span>
+            {/* Title — clickable to navigate to linked event or open edit */}
+            <span
+              onClick={onTitleClick}
+              style={{ fontSize: '15px', fontWeight: 700, color: p.linked_event_id ? '#4CC9F0' : '#e8e8f0', cursor: 'pointer', textDecoration: p.linked_event_id ? 'underline' : 'none', textDecorationColor: 'rgba(76,201,240,.4)', textUnderlineOffset: '3px' }}
+              title={p.linked_event_id ? 'Voir dans Horaire' : 'Modifier'}
+            >{p.title}</span>
+            {p.linked_event_id && (
+              <span style={{ fontSize: '10px', color: '#4CC9F0', opacity: 0.6 }}>↗</span>
+            )}
             <span style={{ fontSize: '11px', fontWeight: 700, color: pc, background: `${pc}18`, padding: '2px 7px', borderRadius: '6px' }}>• {p.priority_level}</span>
             <span style={{ fontSize: '11px', fontWeight: 700, color: sc, background: `${sc}18`, padding: '2px 7px', borderRadius: '6px' }}>{p.status}</span>
-            {p.frequency_type && (() => {
-              const cfg = FREQ_BADGE[p.frequency_type]
-              return (
-                <span style={{ fontSize: '10px', fontWeight: 800, color: cfg.color, background: `${cfg.color}18`, padding: '2px 7px', borderRadius: '6px', border: `1px solid ${cfg.color}44`, letterSpacing: '.04em' }}>
-                  ↻ {cfg.label}
-                </span>
-              )
-            })()}
+            {/* Calendar icon for À faire — navigate to Horaire at chosen date */}
+            {p.status === 'À faire' && (
+              <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => setShowCalPicker(v => !v)}
+                  title="Voir dans l'Horaire"
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 7px', borderRadius: '6px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </button>
+                {showCalPicker && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200, background: '#13131f', border: '1px solid rgba(255,255,255,.15)', borderRadius: '10px', padding: '12px', boxShadow: '0 8px 24px rgba(0,0,0,.5)', minWidth: '220px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>Voir dans l'Horaire</div>
+                    <input
+                      type="date"
+                      value={calPickerDate}
+                      onChange={e => setCalPickerDate(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '7px', color: '#e8e8f0', fontSize: '13px', boxSizing: 'border-box', outline: 'none', marginBottom: '8px' }}
+                    />
+                    <button
+                      onClick={() => { if (calPickerDate) { onNavigateToDate(calPickerDate); setShowCalPicker(false) } }}
+                      disabled={!calPickerDate}
+                      style={{ width: '100%', padding: '8px', borderRadius: '7px', border: 'none', background: 'linear-gradient(135deg,#4CC9F0,#3A86FF)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: calPickerDate ? 'pointer' : 'default', opacity: calPickerDate ? 1 : .5 }}
+                    >Voir →</button>
+                  </div>
+                )}
+              </span>
+            )}
           </div>
           {p.description && (
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', marginBottom: '8px' }}>{p.description}</div>
@@ -703,6 +681,8 @@ export default function PrioritiesClient({
   events: Event[]
 }) {
   const supabase = createClient()
+  const router = useRouter()
+  const { setCalMode, setWkStart, setDayView } = useCalendarStore()
   const [priorities, setPriorities] = useState(initialPriorities)
   const [modalOpen, setModalOpen] = useState(false)
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
@@ -724,6 +704,21 @@ export default function PrioritiesClient({
   const enCours = sorted.filter(p => p.status === 'En cours').length
   const termines = sorted.filter(p => p.status === 'Terminé').length
   const verrouilles = sorted.filter(p => p.locked).length
+
+  function navigateToDate(date: string) {
+    setCalMode('week')
+    setWkStart(getMondayOf(date))
+    setDayView(date)
+    router.push('/schedule')
+  }
+
+  function handlePriorityTitleClick(p: PriorityWithParts) {
+    if (p.linked_event_id) {
+      const ev = events.find(e => e.id === p.linked_event_id)
+      if (ev) { navigateToDate(ev.start_date); return }
+    }
+    openModal(p)
+  }
 
   function openModal(p: PriorityWithParts | null) {
     setEditPriority(p)
@@ -808,14 +803,17 @@ export default function PrioritiesClient({
     ))
     await supabase.from('priority_parts').update({ done: true, completed_date: date }).eq('id', partId)
 
-    // Sync to batiment_inspection
+    // Sync to batiment_inspection — always as mensuel based on date's month
     const part = p.parts.find(pt => pt.id === partId)
-    if (!part || !p.frequency_type) return
+    if (!part) return
     const shortCode = part.label.split(' — ')[0].trim()
     const branch = branches.find(b => b.short_code === shortCode)
-    if (!branch) return
+    if (!branch) return // label doesn't match a branch — skip sync
 
-    const { period, period_type } = getPeriodFromDate(date, p.frequency_type)
+    const [yr, mo] = date.split('-')
+    const period = `${yr}-${mo}`
+    const period_type = 'mensuel'
+
     const { data: existing } = await supabase
       .from('batiment_inspection')
       .select('id')
@@ -877,11 +875,13 @@ export default function PrioritiesClient({
               isLast={idx === sorted.length - 1}
               branches={branches}
               onEdit={() => openModal(p)}
+              onTitleClick={() => handlePriorityTitleClick(p)}
               onMoveUp={() => handleMove(p, 'up')}
               onMoveDown={() => handleMove(p, 'down')}
               onToggleLock={() => handleToggleLock(p)}
               onTogglePart={(partId, done) => handleTogglePart(p, partId, done)}
               onEditPartDate={(partId) => handleEditPartDate(p, partId)}
+              onNavigateToDate={navigateToDate}
             />
           ))}
         </div>
@@ -897,7 +897,7 @@ export default function PrioritiesClient({
         <InspectionDateModal
           partLabel={inspDatePicker.partLabel}
           initialDate={inspDatePicker.currentDate}
-          hasBatimentSync={!!inspDatePicker.priority.frequency_type}
+          hasBatimentSync={branches.some(b => b.short_code === inspDatePicker.partLabel.split(' — ')[0].trim())}
           onConfirm={confirmInspectionDate}
           onCancel={() => setInspDatePicker(null)}
         />
