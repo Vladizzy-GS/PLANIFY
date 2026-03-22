@@ -382,6 +382,88 @@ const FREQ_TYPE_LABELS: Record<string, string> = {
   mensuel: 'MENSUEL',
 }
 
+// ── Confirm year deletion dialog ─────────────────────────────────────────────
+function ConfirmDeleteYear({ year, onConfirm, onCancel }: { year: number; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '14px', padding: '32px 36px', minWidth: '360px', textAlign: 'center' }}>
+        <div style={{ fontSize: '32px', marginBottom: '12px' }}>🗑</div>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>Supprimer {year} ?</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '28px', lineHeight: 1.5 }}>
+          L'année {year} sera retirée de l'affichage.<br />Les données en base restent intactes.
+        </div>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+          <button onClick={onCancel} style={{ padding: '9px 26px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
+          <button onClick={onConfirm} style={{ padding: '9px 26px', borderRadius: '8px', border: 'none', background: '#FF4D6D', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>Supprimer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Branch edit modal ─────────────────────────────────────────────────────────
+function BranchEditModal({ branch, year, getInspDate, saveInspDate, onClose }: {
+  branch: Branch
+  year: number
+  getInspDate: (branchId: string, period: string) => string
+  saveInspDate: (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => Promise<void>
+  onClose: () => void
+}) {
+  // Always show all 15 rows regardless of current filter, ordered: annuel → semestriel → mensuel (Jan→Dec)
+  const allRows = buildPeriodRows(year)
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '14px', padding: '24px', width: '480px', maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: branch.color, boxShadow: `0 0 6px ${branch.color}` }} />
+            <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>{branch.short_code}</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{branch.name} — {year}</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '0 4px' }}>×</button>
+        </div>
+        {/* Rows */}
+        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {allRows.map(row => {
+            const val = getInspDate(branch.id, row.period)
+            const tc = TYPE_COLOR[row.period_type]
+            const tl = TYPE_LABEL[row.period_type]
+            return (
+              <div key={row.period} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: tc + '22', border: `1px solid ${tc}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: tc }}>{tl}</span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', minWidth: '84px', flexShrink: 0 }}>{row.label}</span>
+                <input
+                  type="date"
+                  value={val}
+                  onChange={e => saveInspDate(branch.id, row.period, row.period_type, e.target.value)}
+                  style={{
+                    flex: 1, padding: '4px 8px', borderRadius: '6px',
+                    border: val ? `1px solid ${branch.color}66` : '1px solid var(--border-subtle)',
+                    background: val ? branch.color + '18' : 'var(--bg-panel)',
+                    color: val ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontSize: '12px', outline: 'none', cursor: 'pointer',
+                  }}
+                />
+                <button
+                  onClick={() => saveInspDate(branch.id, row.period, row.period_type, '')}
+                  title="Effacer"
+                  style={{ background: 'none', border: 'none', color: val ? 'var(--text-muted)' : 'rgba(255,255,255,.1)', cursor: val ? 'pointer' : 'default', fontSize: '16px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                >×</button>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 22px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-primary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Fermer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function InspectionBatimentTab({
   branches,
   getInspDate,
@@ -394,11 +476,12 @@ function InspectionBatimentTab({
 }) {
   const [years, setYears] = useState<number[]>(INSP_YEARS_INIT)
   const [year, setYear] = useState(INSP_YEARS_INIT[0])
-  // Active type filters — all on by default
   const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(['annuel', 'semestriel', 'mensuel']))
+  const [confirmDeleteYear, setConfirmDeleteYear] = useState<number | null>(null)
+  const [editBranch, setEditBranch] = useState<Branch | null>(null)
 
-  const allRows = buildPeriodRows(year)
-  const rows = allRows.filter(r => activeTypes.has(r.period_type))
+  // Rows filtered by active type, always Jan→Dec order within each type
+  const rows = buildPeriodRows(year).filter(r => activeTypes.has(r.period_type))
 
   function addNextYear() {
     const next = Math.max(...years) + 1
@@ -406,18 +489,22 @@ function InspectionBatimentTab({
     setYear(next)
   }
 
-  function removeYear(y: number) {
+  function confirmRemove(y: number) {
     if (years.length <= 1) return
+    setConfirmDeleteYear(y)
+  }
+
+  function doRemoveYear(y: number) {
     const next = years.filter(x => x !== y)
     setYears(next)
     if (year === y) setYear(next[next.length - 1])
+    setConfirmDeleteYear(null)
   }
 
   function toggleType(t: string) {
     setActiveTypes(prev => {
       const n = new Set(prev)
       if (n.has(t)) {
-        // Don't allow deselecting all
         if (n.size === 1) return n
         n.delete(t)
       } else {
@@ -429,64 +516,92 @@ function InspectionBatimentTab({
 
   return (
     <div>
-      {/* Year selector + legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {/* Year tabs */}
+      {/* ── Toolbar: years left | type filters + controls right ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+
+        {/* Year tabs (select only, no remove button here) */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
           {years.map((y, i) => (
-            <div key={y} style={{ display: 'flex', alignItems: 'center', borderLeft: i > 0 ? '1px solid var(--border-subtle)' : undefined }}>
-              <button onClick={() => setYear(y)} style={{
-                padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
-                background: year === y ? 'rgba(180,180,190,.2)' : 'transparent',
-                color: year === y ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}>{y}</button>
-              {years.length > 1 && (
-                <button onClick={() => removeYear(y)} title={`Supprimer ${y}`} style={{
-                  padding: '0 6px 0 0', border: 'none', background: 'transparent',
-                  color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', lineHeight: 1,
-                }}>×</button>
-              )}
-            </div>
+            <button key={y} onClick={() => setYear(y)} style={{
+              padding: '6px 20px',
+              borderLeft: i > 0 ? '1px solid var(--border-subtle)' : undefined,
+              border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
+              background: year === y ? 'rgba(180,180,190,.2)' : 'transparent',
+              color: year === y ? 'var(--text-primary)' : 'var(--text-muted)',
+            }}>{y}</button>
           ))}
-          <button onClick={addNextYear} title={`Ajouter ${Math.max(...years) + 1}`} style={{
-            padding: '6px 12px', border: 'none', borderLeft: '1px solid var(--border-subtle)',
-            cursor: 'pointer', fontSize: '15px', fontWeight: 700, color: 'var(--text-muted)',
-            background: 'transparent', lineHeight: 1, transition: 'color .12s',
-          }}>+</button>
         </div>
 
-        {/* Frequency type filter chips */}
-        {(['annuel', 'semestriel', 'mensuel'] as const).map(t => {
-          const active = activeTypes.has(t)
-          const color = TYPE_COLOR[t]
-          return (
-            <button key={t} onClick={() => toggleType(t)} style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '5px 12px', borderRadius: '20px', cursor: 'pointer',
-              border: `1.5px solid ${active ? color : 'var(--border-subtle)'}`,
-              background: active ? color + '22' : 'transparent',
+        {/* Right side: type filters + add/remove year */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Type filter chips */}
+          {(['annuel', 'semestriel', 'mensuel'] as const).map(t => {
+            const active = activeTypes.has(t)
+            const color = TYPE_COLOR[t]
+            return (
+              <button key={t} onClick={() => toggleType(t)} style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '5px 12px', borderRadius: '20px', cursor: 'pointer',
+                border: `1.5px solid ${active ? color : 'var(--border-subtle)'}`,
+                background: active ? color + '22' : 'transparent',
+                transition: 'all .12s',
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: active ? color : 'var(--text-muted)' }} />
+                <span style={{ fontSize: '11px', textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 700, color: active ? color : 'var(--text-muted)' }}>
+                  {FREQ_TYPE_LABELS[t]}
+                </span>
+              </button>
+            )
+          })}
+
+          {/* Divider */}
+          <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle)', margin: '0 2px' }} />
+
+          {/* Add year */}
+          <button onClick={addNextYear} title={`Ajouter ${Math.max(...years) + 1}`} style={{
+            padding: '6px 14px', borderRadius: '8px',
+            border: '1px solid var(--border-subtle)', background: 'transparent',
+            color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 700,
+            cursor: 'pointer', transition: 'all .12s',
+          }}>+ {Math.max(...years) + 1}</button>
+
+          {/* Remove current year */}
+          <button
+            onClick={() => confirmRemove(year)}
+            disabled={years.length <= 1}
+            title={`Supprimer ${year}`}
+            style={{
+              padding: '6px 14px', borderRadius: '8px',
+              border: '1px solid var(--border-subtle)', background: 'transparent',
+              color: years.length <= 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+              fontSize: '13px', fontWeight: 700,
+              cursor: years.length <= 1 ? 'not-allowed' : 'pointer',
+              opacity: years.length <= 1 ? 0.4 : 1,
               transition: 'all .12s',
-            }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: active ? color : 'var(--text-muted)' }} />
-              <span style={{ fontSize: '11px', textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 700, color: active ? color : 'var(--text-muted)' }}>
-                {FREQ_TYPE_LABELS[t]}
-              </span>
-            </button>
-          )
-        })}
+            }}>− {year}</button>
+        </div>
       </div>
 
-      {/* Card per branch */}
+      {/* Branch cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
         {branches.map(b => (
           <div key={b.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
+            {/* Card header with edit button */}
             <div style={{ padding: '11px 16px', borderBottom: `3px solid ${b.color}`, background: 'var(--bg-panel)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.color, boxShadow: `0 0 6px ${b.color}` }} />
                 <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{b.short_code}</span>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{b.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{b.name}</span>
+                <button
+                  onClick={() => setEditBranch(b)}
+                  title="Modifier"
+                  style={{ background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '5px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', padding: '2px 7px', lineHeight: 1.4 }}
+                >✏</button>
+              </div>
             </div>
+            {/* Rows — sorted annuel → semestriel → mensuel (Jan→Dec) */}
             <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
               {rows.map(row => {
                 const val = getInspDate(b.id, row.period)
@@ -520,6 +635,26 @@ function InspectionBatimentTab({
           </div>
         ))}
       </div>
+
+      {/* Confirm delete year popup */}
+      {confirmDeleteYear !== null && (
+        <ConfirmDeleteYear
+          year={confirmDeleteYear}
+          onConfirm={() => doRemoveYear(confirmDeleteYear)}
+          onCancel={() => setConfirmDeleteYear(null)}
+        />
+      )}
+
+      {/* Branch edit modal */}
+      {editBranch && (
+        <BranchEditModal
+          branch={editBranch}
+          year={year}
+          getInspDate={getInspDate}
+          saveInspDate={saveInspDate}
+          onClose={() => setEditBranch(null)}
+        />
+      )}
     </div>
   )
 }
