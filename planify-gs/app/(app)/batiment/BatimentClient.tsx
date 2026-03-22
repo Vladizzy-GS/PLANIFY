@@ -80,8 +80,8 @@ const TYPE_LABEL: Record<string, string> = {
 const s = {
   wrap: { padding: '28px 32px', minHeight: '100vh', background: 'var(--bg-base)' } as React.CSSProperties,
   header: { marginBottom: '20px' } as React.CSSProperties,
-  title: { fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', letterSpacing: '-0.2px' } as React.CSSProperties,
-  sub: { fontSize: '13px', color: 'var(--text-muted)' } as React.CSSProperties,
+  pageLabel: { fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: '.09em', textTransform: 'uppercase' as const, marginBottom: '4px' } as React.CSSProperties,
+  title: { fontFamily: 'var(--font-syne)', fontSize: '24px', fontWeight: 800, color: '#e8e8f0', letterSpacing: '-0.2px' } as React.CSSProperties,
   // Branch filter
   filterRow: { display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
   filterLabel: { fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginRight: '4px' } as React.CSSProperties,
@@ -319,8 +319,8 @@ export default function BatimentClient({
   return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <div style={s.title}>Bâtiment</div>
-        <div style={s.sub}>Gestion des bâtiments par succursale</div>
+        <div style={s.pageLabel}>Gestion des bâtiments</div>
+        <h1 style={s.title}>Bâtiment</h1>
       </div>
 
       {/* Branch filter */}
