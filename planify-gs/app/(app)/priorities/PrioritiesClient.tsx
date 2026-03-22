@@ -33,6 +33,28 @@ const EMPTY_FORM = {
   due_date: '', notes: '',
   start_date: '', end_date: '',
   branch_ids: [] as string[],
+  frequency_type: '' as '' | 'mensuel' | 'semestriel' | 'annuel',
+}
+
+// ─── Batiment sync helpers ────────────────────────────────────────────────────
+
+function getPeriodFromDate(date: string, frequencyType: string): { period: string; period_type: 'mensuel' | 'semestriel' | 'annuel' } {
+  const parts = date.split('-')
+  const year = parseInt(parts[0], 10)
+  const month = parseInt(parts[1], 10)
+  if (frequencyType === 'mensuel') {
+    return { period: `${year}-${String(month).padStart(2, '0')}`, period_type: 'mensuel' }
+  } else if (frequencyType === 'semestriel') {
+    return { period: month <= 6 ? `${year}-S1` : `${year}-S2`, period_type: 'semestriel' }
+  } else {
+    return { period: `${year}`, period_type: 'annuel' }
+  }
+}
+
+const FREQ_BADGE: Record<string, { label: string; color: string }> = {
+  mensuel:     { label: 'Mensuel',    color: '#4caf50' },
+  semestriel:  { label: 'Semi-ann.', color: '#ffd600' },
+  annuel:      { label: 'Annuel',     color: '#00bcd4' },
 }
 
 // ─── Priority Modal ─────────────────────────────────────────────────────────────
@@ -78,6 +100,7 @@ function PriorityModal({
         notes: priority.notes,
         start_date: priority.start_date ?? '', end_date: priority.end_date ?? '',
         branch_ids: priority.branch_ids ?? [],
+        frequency_type: (priority.frequency_type ?? '') as '' | 'mensuel' | 'semestriel' | 'annuel',
       })
       const hasParts = priority.parts.length > 0
       setParts(priority.parts.map(p => ({ label: p.label, done: p.done })))
@@ -96,6 +119,8 @@ function PriorityModal({
     setSplitPreset(preset)
     if (preset === 'Inspection succursales') {
       setParts(branches.map(b => ({ label: `${b.short_code} — ${b.name}`, done: false })))
+      // Default to monthly since building inspections are typically monthly
+      if (!form.frequency_type) set('frequency_type', 'mensuel')
     } else if (preset === '3 parties') {
       setParts([{ label: '', done: false }, { label: '', done: false }, { label: '', done: false }])
     } else if (preset === '5 parties') {
@@ -152,6 +177,7 @@ function PriorityModal({
       branch_ids: splitEnabled ? [] : form.branch_ids,
       notes: form.notes,
       linked_event_id: tab === 'from-event' && selectedEventId ? selectedEventId : (priority?.linked_event_id ?? null),
+      frequency_type: splitEnabled && form.frequency_type ? form.frequency_type : null,
     }
 
     if (priority) {
@@ -343,6 +369,38 @@ function PriorityModal({
                 />
                 <button onClick={addPart} style={{ padding: '9px 14px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,.08)', color: '#e8e8f0', cursor: 'pointer', fontWeight: 600 }}>+</button>
               </div>
+
+              {/* Frequency type — for batiment sync */}
+              <div>
+                <label style={lbl}>Fréquence d'inspection (sync Bâtiment)</label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {(['mensuel', 'semestriel', 'annuel'] as const).map(ft => {
+                    const cfg = FREQ_BADGE[ft]
+                    const active = form.frequency_type === ft
+                    return (
+                      <button
+                        key={ft}
+                        type="button"
+                        onClick={() => set('frequency_type', active ? '' : ft)}
+                        style={{
+                          flex: 1, padding: '8px 6px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                          border: `1.5px solid ${active ? cfg.color : 'rgba(255,255,255,.12)'}`,
+                          background: active ? `${cfg.color}22` : 'transparent',
+                          color: active ? cfg.color : 'rgba(255,255,255,.4)',
+                          transition: 'all .15s',
+                        }}
+                      >
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {form.frequency_type && (
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginTop: '5px', paddingLeft: '2px' }}>
+                    Cocher une succursale demandera la date d'inspection → synchronisée dans Bâtiment
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -479,6 +537,14 @@ function PriorityRow({
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{p.title}</span>
             <span style={{ fontSize: '11px', fontWeight: 700, color: pc, background: `${pc}18`, padding: '2px 7px', borderRadius: '6px' }}>• {p.priority_level}</span>
             <span style={{ fontSize: '11px', fontWeight: 700, color: sc, background: `${sc}18`, padding: '2px 7px', borderRadius: '6px' }}>{p.status}</span>
+            {p.frequency_type && (() => {
+              const cfg = FREQ_BADGE[p.frequency_type]
+              return (
+                <span style={{ fontSize: '10px', fontWeight: 800, color: cfg.color, background: `${cfg.color}18`, padding: '2px 7px', borderRadius: '6px', border: `1px solid ${cfg.color}44`, letterSpacing: '.04em' }}>
+                  ↻ {cfg.label}
+                </span>
+              )
+            })()}
           </div>
           {p.description && (
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,.35)', marginBottom: '8px' }}>{p.description}</div>
@@ -562,12 +628,56 @@ function PriorityRow({
                   <span style={{ fontSize: '13px', color: pt.done ? 'rgba(255,255,255,.3)' : '#e8e8f0', textDecoration: pt.done ? 'line-through' : 'none', flex: 1 }}>
                     {pt.label}
                   </span>
+                  {pt.done && pt.completed_date && (
+                    <span style={{ fontSize: '10px', color: '#06D6A0', background: 'rgba(6,214,160,.12)', padding: '2px 7px', borderRadius: '5px', flexShrink: 0 }}>
+                      {pt.completed_date}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Date Picker Modal (for batiment sync) ───────────────────────────────────────
+
+function InspectionDateModal({
+  partLabel, onConfirm, onCancel,
+}: {
+  partLabel: string
+  onConfirm: (date: string) => void
+  onCancel: () => void
+}) {
+  const [date, setDate] = useState(todayStr())
+  return (
+    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.12)', borderRadius: '16px', padding: '28px', width: '360px' }}>
+        <div style={{ marginBottom: '18px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '6px' }}>Date d'inspection</div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{partLabel}</div>
+        </div>
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{ width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.15)', borderRadius: '9px', color: '#e8e8f0', fontSize: '14px', boxSizing: 'border-box', marginBottom: '18px', outline: 'none' }}
+        />
+        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginBottom: '18px' }}>
+          Cette date sera synchronisée dans Bâtiment → Inspection Bâtiment.
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '10px', borderRadius: '9px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            Annuler
+          </button>
+          <button onClick={() => date && onConfirm(date)} disabled={!date} style={{ flex: 2, padding: '10px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#06D6A0,#3A86FF)', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: date ? 'pointer' : 'default', opacity: date ? 1 : .5 }}>
+            Confirmer et sync
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -585,6 +695,7 @@ export default function PrioritiesClient({
   const [priorities, setPriorities] = useState(initialPriorities)
   const [modalOpen, setModalOpen] = useState(false)
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
+  const [inspDatePicker, setInspDatePicker] = useState<{ priority: PriorityWithParts; partId: string; partLabel: string } | null>(null)
 
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const myEmployeeId = useSessionStore(s => s.myEmployeeId)
@@ -651,11 +762,55 @@ export default function PrioritiesClient({
   }
 
   async function handleTogglePart(p: PriorityWithParts, partId: string, done: boolean) {
+    // If checking done and priority has batiment frequency → ask for inspection date
+    if (done && p.frequency_type) {
+      const part = p.parts.find(pt => pt.id === partId)
+      if (part) {
+        setInspDatePicker({ priority: p, partId, partLabel: part.label })
+        return
+      }
+    }
+    // Normal toggle (unchecking, or no frequency)
+    const completedDate = done ? todayStr() : null
     setPriorities(prev => prev.map(x => x.id === p.id
-      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done } : pt) }
+      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done, completed_date: completedDate } : pt) }
       : x
     ))
-    await supabase.from('priority_parts').update({ done }).eq('id', partId)
+    await supabase.from('priority_parts').update({ done, completed_date: completedDate }).eq('id', partId)
+  }
+
+  async function confirmInspectionDate(date: string) {
+    if (!inspDatePicker) return
+    const { priority: p, partId } = inspDatePicker
+    setInspDatePicker(null)
+
+    // Update local state
+    setPriorities(prev => prev.map(x => x.id === p.id
+      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done: true, completed_date: date } : pt) }
+      : x
+    ))
+    await supabase.from('priority_parts').update({ done: true, completed_date: date }).eq('id', partId)
+
+    // Sync to batiment_inspection
+    const part = p.parts.find(pt => pt.id === partId)
+    if (!part || !p.frequency_type) return
+    const shortCode = part.label.split(' — ')[0].trim()
+    const branch = branches.find(b => b.short_code === shortCode)
+    if (!branch) return
+
+    const { period, period_type } = getPeriodFromDate(date, p.frequency_type)
+    const { data: existing } = await supabase
+      .from('batiment_inspection')
+      .select('id')
+      .eq('branch_id', branch.id)
+      .eq('period', period)
+      .maybeSingle()
+
+    if (existing) {
+      await supabase.from('batiment_inspection').update({ inspection_date: date, updated_at: new Date().toISOString() }).eq('id', existing.id)
+    } else {
+      await supabase.from('batiment_inspection').insert({ branch_id: branch.id, period, period_type, inspection_date: date })
+    }
   }
 
   return (
@@ -719,6 +874,14 @@ export default function PrioritiesClient({
         priority={editPriority} onSaved={onSaved} onDeleted={onDeleted}
         branches={branches} events={events}
       />
+
+      {inspDatePicker && (
+        <InspectionDateModal
+          partLabel={inspDatePicker.partLabel}
+          onConfirm={confirmInspectionDate}
+          onCancel={() => setInspDatePicker(null)}
+        />
+      )}
     </div>
   )
 }

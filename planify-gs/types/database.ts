@@ -77,6 +77,7 @@ export type Priority = {
   locked: boolean
   notes: string
   linked_event_id: string | null
+  frequency_type: 'mensuel' | 'semestriel' | 'annuel' | null
   created_at: string
   updated_at: string
 }
@@ -87,6 +88,7 @@ export type PriorityPart = {
   label: string
   done: boolean
   position: number
+  completed_date: string | null
   created_at: string
 }
 
@@ -178,7 +180,7 @@ export type EventInsert = Omit<Event, 'id' | 'created_at' | 'updated_at' | 'assi
   branch_ids?: string[]
   done?: boolean
 }
-export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' | 'locked' | 'linked_event_id' | 'branch_ids' | 'start_date' | 'end_date'> & {
+export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' | 'locked' | 'linked_event_id' | 'branch_ids' | 'start_date' | 'end_date' | 'frequency_type'> & {
   id?: string
   rank?: number
   description?: string
@@ -192,11 +194,13 @@ export type PriorityInsert = Omit<Priority, 'id' | 'created_at' | 'updated_at' |
   locked?: boolean
   notes?: string
   linked_event_id?: string | null
+  frequency_type?: Priority['frequency_type']
 }
-export type PriorityPartInsert = Omit<PriorityPart, 'id' | 'created_at'> & {
+export type PriorityPartInsert = Omit<PriorityPart, 'id' | 'created_at' | 'completed_date'> & {
   id?: string
   done?: boolean
   position?: number
+  completed_date?: string | null
 }
 export type SupplierInsert = Omit<Supplier, 'id' | 'created_at' | 'updated_at'> & {
   id?: string
