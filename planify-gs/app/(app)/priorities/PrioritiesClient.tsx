@@ -885,6 +885,9 @@ export default function PrioritiesClient({
     } else {
       await supabase.from('batiment_inspection').insert({ branch_id: branch.id, period, period_type, inspection_date: date })
     }
+
+    // Invalidate router cache so navigating away and back fetches fresh data (prevents parts appearing unchecked)
+    router.refresh()
   }
 
   return (

@@ -279,6 +279,8 @@ export default function BatimentClient({
   const saveInspDate = useCallback(async (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => {
     const existing = inspections.find(i => i.branch_id === branchId && i.period === period)
     if (existing) {
+      // Optimistic update so the controlled input shows the new date immediately
+      setInspections(prev => prev.map(i => i.id === existing.id ? { ...i, inspection_date: date || null } : i))
       const { data } = await supabase.from('batiment_inspection').update({ inspection_date: date || null, updated_at: new Date().toISOString() }).eq('id', existing.id).select().single()
       if (data) setInspections(prev => prev.map(i => i.id === data.id ? data : i))
     } else {
