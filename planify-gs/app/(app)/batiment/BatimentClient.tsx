@@ -51,10 +51,12 @@ const INSP_YEARS_INIT = [2025, 2026]
 const MONTH_NAMES = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
 
 function buildPeriodRows(yr: number) {
+  // Exactly 15 rows: 1 annuel + 2 semestriel + 12 mensuel
+  // Use distinct keys: S1/S2 for semiannual so they never collide with monthly keys
   const rows: { period: string; period_type: 'annuel' | 'semestriel' | 'mensuel'; label: string }[] = []
   rows.push({ period: `${yr}`, period_type: 'annuel', label: 'Annuel' })
-  rows.push({ period: `${yr}-06`, period_type: 'semestriel', label: 'Semi — Juin' })
-  rows.push({ period: `${yr}-12`, period_type: 'semestriel', label: 'Semi — Déc' })
+  rows.push({ period: `${yr}-S1`, period_type: 'semestriel', label: 'Semi — Juin' })
+  rows.push({ period: `${yr}-S2`, period_type: 'semestriel', label: 'Semi — Déc' })
   for (let m = 1; m <= 12; m++) {
     const mm = String(m).padStart(2, '0')
     rows.push({ period: `${yr}-${mm}`, period_type: 'mensuel', label: MONTH_NAMES[m - 1] })
@@ -83,11 +85,11 @@ const s = {
   // Branch filter
   filterRow: { display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' as const, alignItems: 'center' } as React.CSSProperties,
   filterLabel: { fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginRight: '4px' } as React.CSSProperties,
-  branchBtn: (active: boolean, color: string): React.CSSProperties => ({
+  branchBtn: (active: boolean, _color: string): React.CSSProperties => ({
     padding: '4px 12px', borderRadius: '20px',
-    border: `1.5px solid ${active ? color : 'var(--border-subtle)'}`,
-    background: active ? color : 'transparent',
-    color: active ? '#fff' : 'var(--text-muted)',
+    border: `1.5px solid ${active ? 'rgba(180,180,190,.5)' : 'var(--border-subtle)'}`,
+    background: active ? 'rgba(180,180,190,.18)' : 'transparent',
+    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
     fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all .12s',
   }),
   allBtn: (active: boolean): React.CSSProperties => ({
@@ -404,6 +406,13 @@ function InspectionBatimentTab({
     setYear(next)
   }
 
+  function removeYear(y: number) {
+    if (years.length <= 1) return
+    const next = years.filter(x => x !== y)
+    setYears(next)
+    if (year === y) setYear(next[next.length - 1])
+  }
+
   function toggleType(t: string) {
     setActiveTypes(prev => {
       const n = new Set(prev)
@@ -424,12 +433,20 @@ function InspectionBatimentTab({
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {/* Year tabs */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-          {years.map(y => (
-            <button key={y} onClick={() => setYear(y)} style={{
-              padding: '6px 20px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
-              background: year === y ? '#FF4D6D' : 'transparent',
-              color: year === y ? '#fff' : 'var(--text-muted)',
-            }}>{y}</button>
+          {years.map((y, i) => (
+            <div key={y} style={{ display: 'flex', alignItems: 'center', borderLeft: i > 0 ? '1px solid var(--border-subtle)' : undefined }}>
+              <button onClick={() => setYear(y)} style={{
+                padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all .12s',
+                background: year === y ? 'rgba(180,180,190,.2)' : 'transparent',
+                color: year === y ? 'var(--text-primary)' : 'var(--text-muted)',
+              }}>{y}</button>
+              {years.length > 1 && (
+                <button onClick={() => removeYear(y)} title={`Supprimer ${y}`} style={{
+                  padding: '0 6px 0 0', border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', lineHeight: 1,
+                }}>×</button>
+              )}
+            </div>
           ))}
           <button onClick={addNextYear} title={`Ajouter ${Math.max(...years) + 1}`} style={{
             padding: '6px 12px', border: 'none', borderLeft: '1px solid var(--border-subtle)',
