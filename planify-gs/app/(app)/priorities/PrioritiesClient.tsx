@@ -485,7 +485,7 @@ function PriorityModal({
 
 function PriorityRow({
   p, rank, isFirst, isLast, branches,
-  onEdit, onMoveUp, onMoveDown, onToggleLock, onTogglePart,
+  onEdit, onMoveUp, onMoveDown, onToggleLock, onTogglePart, onEditPartDate,
 }: {
   p: PriorityWithParts
   rank: number
@@ -497,6 +497,7 @@ function PriorityRow({
   onMoveDown: () => void
   onToggleLock: () => void
   onTogglePart: (partId: string, done: boolean) => void
+  onEditPartDate: (partId: string) => void
 }) {
   const pc = priorityColor(p.priority_level)
   const sc = statusColor(p.status)
@@ -629,8 +630,12 @@ function PriorityRow({
                     {pt.label}
                   </span>
                   {pt.done && pt.completed_date && (
-                    <span style={{ fontSize: '10px', color: '#06D6A0', background: 'rgba(6,214,160,.12)', padding: '2px 7px', borderRadius: '5px', flexShrink: 0 }}>
-                      {pt.completed_date}
+                    <span
+                      onClick={e => { e.stopPropagation(); onEditPartDate(pt.id) }}
+                      title="Modifier la date"
+                      style={{ fontSize: '10px', color: '#06D6A0', background: 'rgba(6,214,160,.12)', padding: '2px 7px', borderRadius: '5px', flexShrink: 0, cursor: 'pointer', border: '1px solid rgba(6,214,160,.2)' }}
+                    >
+                      ✎ {pt.completed_date}
                     </span>
                   )}
                 </div>
@@ -643,21 +648,25 @@ function PriorityRow({
   )
 }
 
-// ─── Date Picker Modal (for batiment sync) ───────────────────────────────────────
+// ─── Date Picker Modal ────────────────────────────────────────────────────────
 
 function InspectionDateModal({
-  partLabel, onConfirm, onCancel,
+  partLabel, initialDate, hasBatimentSync, onConfirm, onCancel,
 }: {
   partLabel: string
+  initialDate: string | null
+  hasBatimentSync: boolean
   onConfirm: (date: string) => void
   onCancel: () => void
 }) {
-  const [date, setDate] = useState(todayStr())
+  const [date, setDate] = useState(initialDate || todayStr())
   return (
     <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#13131f', border: '1px solid rgba(255,255,255,.12)', borderRadius: '16px', padding: '28px', width: '360px' }}>
         <div style={{ marginBottom: '18px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '6px' }}>Date d'inspection</div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '6px' }}>
+            {hasBatimentSync ? "Date d'inspection" : "Date de complétion"}
+          </div>
           <div style={{ fontSize: '15px', fontWeight: 700, color: '#e8e8f0' }}>{partLabel}</div>
         </div>
         <input
@@ -666,15 +675,17 @@ function InspectionDateModal({
           onChange={e => setDate(e.target.value)}
           style={{ width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.15)', borderRadius: '9px', color: '#e8e8f0', fontSize: '14px', boxSizing: 'border-box', marginBottom: '18px', outline: 'none' }}
         />
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginBottom: '18px' }}>
-          Cette date sera synchronisée dans Bâtiment → Inspection Bâtiment.
-        </div>
+        {hasBatimentSync && (
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginBottom: '18px' }}>
+            Cette date sera synchronisée dans Bâtiment → Inspection Bâtiment.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={onCancel} style={{ flex: 1, padding: '10px', borderRadius: '9px', border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
             Annuler
           </button>
           <button onClick={() => date && onConfirm(date)} disabled={!date} style={{ flex: 2, padding: '10px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#06D6A0,#3A86FF)', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: date ? 'pointer' : 'default', opacity: date ? 1 : .5 }}>
-            Confirmer et sync
+            {hasBatimentSync ? 'Confirmer et sync' : 'Confirmer'}
           </button>
         </div>
       </div>
@@ -695,7 +706,7 @@ export default function PrioritiesClient({
   const [priorities, setPriorities] = useState(initialPriorities)
   const [modalOpen, setModalOpen] = useState(false)
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
-  const [inspDatePicker, setInspDatePicker] = useState<{ priority: PriorityWithParts; partId: string; partLabel: string } | null>(null)
+  const [inspDatePicker, setInspDatePicker] = useState<{ priority: PriorityWithParts; partId: string; partLabel: string; currentDate: string | null } | null>(null)
 
   const selectedEmployeeId = useSessionStore(s => s.selectedEmployeeId)
   const myEmployeeId = useSessionStore(s => s.myEmployeeId)
@@ -762,21 +773,27 @@ export default function PrioritiesClient({
   }
 
   async function handleTogglePart(p: PriorityWithParts, partId: string, done: boolean) {
-    // If checking done and priority has batiment frequency → ask for inspection date
-    if (done && p.frequency_type) {
+    if (done) {
+      // Always show date picker when checking a part
       const part = p.parts.find(pt => pt.id === partId)
       if (part) {
-        setInspDatePicker({ priority: p, partId, partLabel: part.label })
+        setInspDatePicker({ priority: p, partId, partLabel: part.label, currentDate: null })
         return
       }
     }
-    // Normal toggle (unchecking, or no frequency)
-    const completedDate = done ? todayStr() : null
+    // Unchecking: clear date
     setPriorities(prev => prev.map(x => x.id === p.id
-      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done, completed_date: completedDate } : pt) }
+      ? { ...x, parts: x.parts.map(pt => pt.id === partId ? { ...pt, done: false, completed_date: null } : pt) }
       : x
     ))
-    await supabase.from('priority_parts').update({ done, completed_date: completedDate }).eq('id', partId)
+    await supabase.from('priority_parts').update({ done: false, completed_date: null }).eq('id', partId)
+  }
+
+  function handleEditPartDate(p: PriorityWithParts, partId: string) {
+    const part = p.parts.find(pt => pt.id === partId)
+    if (part) {
+      setInspDatePicker({ priority: p, partId, partLabel: part.label, currentDate: part.completed_date ?? null })
+    }
   }
 
   async function confirmInspectionDate(date: string) {
@@ -864,6 +881,7 @@ export default function PrioritiesClient({
               onMoveDown={() => handleMove(p, 'down')}
               onToggleLock={() => handleToggleLock(p)}
               onTogglePart={(partId, done) => handleTogglePart(p, partId, done)}
+              onEditPartDate={(partId) => handleEditPartDate(p, partId)}
             />
           ))}
         </div>
@@ -878,6 +896,8 @@ export default function PrioritiesClient({
       {inspDatePicker && (
         <InspectionDateModal
           partLabel={inspDatePicker.partLabel}
+          initialDate={inspDatePicker.currentDate}
+          hasBatimentSync={!!inspDatePicker.priority.frequency_type}
           onConfirm={confirmInspectionDate}
           onCancel={() => setInspDatePicker(null)}
         />

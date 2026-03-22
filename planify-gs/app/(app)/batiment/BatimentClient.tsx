@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type {
   Branch,
@@ -253,6 +253,13 @@ export default function BatimentClient({
   const [lumiere, setLumiere] = useState(initLumiere)
   const [paradox, setParadox] = useState(initParadox)
   const [reservoir, setReservoir] = useState(initReservoir)
+
+  // Re-fetch inspections on mount to pick up any changes made from other pages (e.g. Priorités sync)
+  useEffect(() => {
+    supabase.from('batiment_inspection').select('*').then(({ data }) => {
+      if (data) setInspections(data as BatimentInspection[])
+    })
+  }, [supabase])
 
   // ── Branch filter ─────────────────────────────────────────────────────────
   const [selectedBranches, setSelectedBranches] = useState<Set<string>>(() => new Set(branches.map(b => b.id)))
