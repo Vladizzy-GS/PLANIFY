@@ -199,7 +199,7 @@ const s = {
   btnSm: { padding: '5px 12px', borderRadius: '6px', border: 'none', background: '#FF4D6D', color: '#fff', fontWeight: 600, fontSize: '12px', cursor: 'pointer' } as React.CSSProperties,
   btnGhost: { padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '13px', cursor: 'pointer' } as React.CSSProperties,
   btnIcon: { padding: '3px 7px', borderRadius: '5px', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer', lineHeight: '1' } as React.CSSProperties,
-  inp: { padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const } as React.CSSProperties,
+  inp: { padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, colorScheme: 'dark' } as React.CSSProperties,
   select: { padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '13px', cursor: 'pointer', outline: 'none', width: '100%' } as React.CSSProperties,
   // Date chip for GenericDateTab
   dateChip: (): React.CSSProperties => ({
@@ -279,13 +279,23 @@ export default function BatimentClient({
   const saveInspDate = useCallback(async (branchId: string, period: string, periodType: BatimentInspection['period_type'], date: string) => {
     const existing = inspections.find(i => i.branch_id === branchId && i.period === period)
     if (existing) {
-      // Optimistic update so the controlled input shows the new date immediately
+      // Optimistic update so controlled input reflects the new date immediately (avoids snap-back)
       setInspections(prev => prev.map(i => i.id === existing.id ? { ...i, inspection_date: date || null } : i))
       const { data } = await supabase.from('batiment_inspection').update({ inspection_date: date || null, updated_at: new Date().toISOString() }).eq('id', existing.id).select().single()
       if (data) setInspections(prev => prev.map(i => i.id === data.id ? data : i))
+      else setInspections(prev => prev.map(i => i.id === existing.id ? existing : i)) // rollback on error
     } else {
+      // Optimistic insert with a temp id so the input shows the date immediately
+      const tempId = `temp-${branchId}-${period}`
+      const tempRecord: BatimentInspection = {
+        id: tempId, branch_id: branchId, period, period_type: periodType,
+        inspection_date: date || null, notes: null,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      }
+      setInspections(prev => [...prev, tempRecord])
       const { data } = await supabase.from('batiment_inspection').insert({ branch_id: branchId, period, period_type: periodType, inspection_date: date || null }).select().single()
-      if (data) setInspections(prev => [...prev, data])
+      if (data) setInspections(prev => prev.map(i => i.id === tempId ? data : i))
+      else setInspections(prev => prev.filter(i => i.id !== tempId)) // rollback on error
     }
   }, [inspections, supabase])
 
@@ -453,8 +463,9 @@ function BranchEditModal({ branch, year, getInspDate, saveInspDate, onClose }: {
                     flex: 1, padding: '4px 8px', borderRadius: '6px',
                     border: val ? `1px solid ${branch.color}66` : '1px solid var(--border-subtle)',
                     background: val ? branch.color + '18' : 'var(--bg-panel)',
-                    color: val ? 'var(--text-primary)' : 'var(--text-muted)',
+                    color: 'var(--text-primary)',
                     fontSize: '12px', outline: 'none', cursor: 'pointer',
+                    colorScheme: 'dark',
                   }}
                 />
                 <button
@@ -631,8 +642,9 @@ function InspectionBatimentTab({
                         flex: 1, padding: '4px 8px', borderRadius: '6px',
                         border: val ? `1px solid ${b.color}66` : '1px solid var(--border-subtle)',
                         background: val ? b.color + '18' : 'var(--bg-panel)',
-                        color: val ? 'var(--text-primary)' : 'var(--text-muted)',
+                        color: 'var(--text-primary)',
                         fontSize: '12px', outline: 'none', cursor: 'pointer',
+                        colorScheme: 'dark',
                       }}
                     />
                     {val && (

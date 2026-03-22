@@ -41,7 +41,7 @@ const EMPTY_FORM = {
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 
 function EventModal({
-  open, onClose, event, employees, branches, myEmployeeId, isAdmin, onSaved, onDeleted,
+  open, onClose, event, employees, branches, myEmployeeId, isAdmin, onSaved, onDeleted, initialDate,
 }: {
   open: boolean
   onClose: () => void
@@ -52,6 +52,7 @@ function EventModal({
   isAdmin: boolean
   onSaved: (ev: Event) => void
   onDeleted: (id: string) => void
+  initialDate?: string
 }) {
   const supabase = createClient()
   const [form, setForm] = useState({ ...EMPTY_FORM })
@@ -81,11 +82,12 @@ function EventModal({
       })
       setEmpId(event.employee_id)
     } else {
-      setForm({ ...EMPTY_FORM, start_date: todayStr(), end_date: todayStr() })
+      const d = initialDate ?? todayStr()
+      setForm({ ...EMPTY_FORM, start_date: d, end_date: d })
       setEmpId(myEmployeeId ?? '')
     }
     setErr('')
-  }, [open, event, myEmployeeId])
+  }, [open, event, myEmployeeId, initialDate])
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }))
@@ -774,6 +776,7 @@ export default function ScheduleClient({
 
   const [events, setEvents] = useState<Event[]>(initialEvents)
   const [modalOpen, setModalOpen] = useState(false)
+  const [clickedDate, setClickedDate] = useState<string | undefined>(undefined)
 
   // Sync events + branches to global store (for AppShell déplacements + progress)
   useEffect(() => { setCalEvents(events) }, [events, setCalEvents])
@@ -826,8 +829,9 @@ export default function ScheduleClient({
     setModalOpen(true)
   }
 
-  function handleDateClick(_date: string) {
+  function handleDateClick(date: string) {
     setEditEvent(null)
+    setClickedDate(date)
     setModalOpen(true)
   }
 
@@ -1004,10 +1008,11 @@ export default function ScheduleClient({
 
       {/* Modal */}
       <EventModal
-        open={modalOpen} onClose={() => setModalOpen(false)}
+        open={modalOpen} onClose={() => { setModalOpen(false); setClickedDate(undefined) }}
         event={editEvent} employees={employees} branches={branches}
         myEmployeeId={viewEmpId ?? myEmployeeId} isAdmin={isAdmin}
         onSaved={onSaved} onDeleted={onDeleted}
+        initialDate={editEvent ? undefined : clickedDate}
       />
     </div>
   )

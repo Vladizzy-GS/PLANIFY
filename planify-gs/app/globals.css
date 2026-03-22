@@ -179,7 +179,12 @@ select option {
   padding: 16px 18px;
 }
 
-/* ── Calendar light mode fixes ──────────────────────────────────────────── */
+/* ── Calendar color-scheme fixes ──────────────────────────────────────────── */
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+}
+
 [data-theme="light"] input[type="date"],
 [data-theme="light"] input[type="time"],
 [data-theme="light"] input[type="text"],

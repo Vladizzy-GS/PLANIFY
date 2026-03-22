@@ -687,7 +687,7 @@ function InspectionDateModal({
           type="date"
           value={date}
           onChange={e => setDate(e.target.value)}
-          style={{ width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.15)', borderRadius: '9px', color: '#e8e8f0', fontSize: '14px', boxSizing: 'border-box', marginBottom: '18px', outline: 'none' }}
+          style={{ width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.15)', borderRadius: '9px', color: '#e8e8f0', fontSize: '14px', boxSizing: 'border-box', marginBottom: '18px', outline: 'none', colorScheme: 'dark' }}
         />
         {hasBatimentSync && (
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,.3)', marginBottom: '18px' }}>
