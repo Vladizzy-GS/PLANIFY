@@ -255,11 +255,12 @@ export default function BatimentClient({
   const [reservoir, setReservoir] = useState(initReservoir)
 
   // Re-fetch inspections on mount to pick up any changes made from other pages (e.g. Priorités sync)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     supabase.from('batiment_inspection').select('*').then(({ data }) => {
       if (data) setInspections(data as BatimentInspection[])
     })
-  }, [supabase])
+  }, []) // empty deps: run once on mount only — supabase instance must NOT be in deps (changes every render)
 
   // ── Branch filter ─────────────────────────────────────────────────────────
   const [selectedBranches, setSelectedBranches] = useState<Set<string>>(() => new Set(branches.map(b => b.id)))

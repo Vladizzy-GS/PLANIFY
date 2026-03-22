@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   due_date: '', notes: '',
   start_date: '', end_date: '',
   branch_ids: [] as string[],
+  frequency_type: null as Priority['frequency_type'],
 }
 
 // ─── Priority Modal ─────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ function PriorityModal({
         notes: priority.notes,
         start_date: priority.start_date ?? '', end_date: priority.end_date ?? '',
         branch_ids: priority.branch_ids ?? [],
+        frequency_type: priority.frequency_type ?? null,
       })
       const hasParts = priority.parts.length > 0
       setParts(priority.parts.map(p => ({ label: p.label, done: p.done })))
@@ -98,12 +100,17 @@ function PriorityModal({
     setSplitPreset(preset)
     if (preset === 'Inspection succursales') {
       setParts(branches.map(b => ({ label: `${b.short_code} — ${b.name}`, done: false })))
+      // Auto-set frequency_type default to mensuel for batiment sync
+      if (!form.frequency_type) set('frequency_type', 'mensuel')
     } else if (preset === '3 parties') {
       setParts([{ label: '', done: false }, { label: '', done: false }, { label: '', done: false }])
+      set('frequency_type', null)
     } else if (preset === '5 parties') {
       setParts(Array.from({ length: 5 }, () => ({ label: '', done: false })))
+      set('frequency_type', null)
     } else {
       setParts([])
+      set('frequency_type', null)
     }
   }
 
@@ -154,7 +161,7 @@ function PriorityModal({
       branch_ids: splitEnabled ? [] : form.branch_ids,
       notes: form.notes,
       linked_event_id: tab === 'from-event' && selectedEventId ? selectedEventId : (priority?.linked_event_id ?? null),
-      frequency_type: null,
+      frequency_type: form.frequency_type ?? null,
     }
 
     if (priority) {
@@ -319,6 +326,35 @@ function PriorityModal({
                   </button>
                 ))}
               </div>
+
+              {/* Frequency type selector — auto-detected for Inspection succursales, syncs to Bâtiment */}
+              {splitPreset === 'Inspection succursales' && (
+                <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(6,214,160,.07)', border: '1px solid rgba(6,214,160,.2)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(6,214,160,.8)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Synchronisation Bâtiment — Fréquence
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {(['mensuel', 'semestriel', 'annuel'] as Priority['frequency_type'][]).map(ft => (
+                      <button
+                        key={ft!}
+                        onClick={() => set('frequency_type', ft)}
+                        style={{
+                          flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: '1px solid',
+                          borderColor: form.frequency_type === ft ? '#06D6A0' : 'rgba(255,255,255,.12)',
+                          background: form.frequency_type === ft ? 'rgba(6,214,160,.18)' : 'rgba(255,255,255,.04)',
+                          color: form.frequency_type === ft ? '#06D6A0' : 'rgba(255,255,255,.4)',
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {ft}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.25)', marginTop: '6px' }}>
+                    Détermine la période dans Inspection Bâtiment lors de la complétion de chaque succursale.
+                  </div>
+                </div>
+              )}
 
               {/* Parts list */}
               <div style={{ display: 'grid', gap: '6px' }}>
@@ -684,6 +720,12 @@ export default function PrioritiesClient({
   const router = useRouter()
   const { setCalMode, setWkStart, setDayView } = useCalendarStore()
   const [priorities, setPriorities] = useState(initialPriorities)
+
+  // Sync server-fetched data into local state whenever the page re-renders with fresh props
+  // This fixes dates disappearing after navigating away and back (router cache may serve stale RSC)
+  useEffect(() => {
+    setPriorities(initialPriorities)
+  }, [initialPriorities])
   const [modalOpen, setModalOpen] = useState(false)
   const [editPriority, setEditPriority] = useState<PriorityWithParts | null>(null)
   const [inspDatePicker, setInspDatePicker] = useState<{ priority: PriorityWithParts; partId: string; partLabel: string; currentDate: string | null } | null>(null)
@@ -731,6 +773,8 @@ export default function PrioritiesClient({
       if (idx >= 0) { const n = [...prev]; n[idx] = p; return n }
       return [...prev, p]
     })
+    // Invalidate router cache so navigating away and back fetches fresh data (prevents dates disappearing)
+    router.refresh()
   }
 
   function onDeleted(id: string) {
@@ -803,7 +847,7 @@ export default function PrioritiesClient({
     ))
     await supabase.from('priority_parts').update({ done: true, completed_date: date }).eq('id', partId)
 
-    // Sync to batiment_inspection — always as mensuel based on date's month
+    // Sync to batiment_inspection — use priority's frequency_type to determine the correct period
     const part = p.parts.find(pt => pt.id === partId)
     if (!part) return
     const shortCode = part.label.split(' — ')[0].trim()
@@ -811,8 +855,23 @@ export default function PrioritiesClient({
     if (!branch) return // label doesn't match a branch — skip sync
 
     const [yr, mo] = date.split('-')
-    const period = `${yr}-${mo}`
-    const period_type = 'mensuel'
+    const freqType = p.frequency_type
+
+    let period: string
+    let period_type: 'annuel' | 'semestriel' | 'mensuel'
+
+    if (freqType === 'annuel') {
+      period = yr
+      period_type = 'annuel'
+    } else if (freqType === 'semestriel') {
+      const monthNum = parseInt(mo, 10)
+      period = monthNum <= 6 ? `${yr}-S1` : `${yr}-S2`
+      period_type = 'semestriel'
+    } else {
+      // Default to mensuel (also covers explicit mensuel and null/unset)
+      period = `${yr}-${mo}`
+      period_type = 'mensuel'
+    }
 
     const { data: existing } = await supabase
       .from('batiment_inspection')
